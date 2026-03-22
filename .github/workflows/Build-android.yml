@@ -21,12 +21,14 @@ jobs:
           fetch-depth: 1
           submodules: false
 
-      - name: Setup Java 11
-        uses: actions/setup-java@v4
+      - name: Setup Java JDK
+        uses: actions/setup-java@v5.2.0
         with:
-          distribution: 'temurin'
           java-version: '11'
-          cache: gradle
+          distribution: 'temurin'
+          java-package: 'jdk'
+          cache: 'gradle'
+          check-latest: false
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -66,13 +68,15 @@ jobs:
           haxelib run lime build android -v -release
         timeout-minutes: 180
 
-      - name: Upload APK to artifacts
+      - name: Upload a Build Artifact
+        uses: actions/upload-artifact@v3.2.2
         if: success()
-        uses: actions/upload-artifact@v4
         with:
           name: FNF-Mobile-APK
           path: export/release/android/bin/app-release.apk
+          if-no-files-found: warn
           retention-days: 90
+          include-hidden-files: false
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
