@@ -1,148 +1,85 @@
-name: Mobile
+# Android Build CI for FNF V-SLICE
+# Based on Kade engine ci
+# Updated with latest versions
 
-on:
-  workflow_dispatch:
-    inputs:
-      buildFlags:
-        required: false
-        type: string
-  workflow_call:
-    inputs:
-      buildFlags:
-        required: false
-        type: string
+name: Android Build CI
 
-env:
-  PROJECT_NAME: FNF-VSLICE
+on: [push, pull_request, workflow_dispatch]
 
 jobs:
-  Mobile:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
+  build:
+    runs-on: ubuntu-latest
+    
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: 'main'
 
       - name: Setup Haxe
         uses: krdlab/setup-haxe@v1
         with:
           haxe-version: 4.3.6
 
+      - name: Cache haxelib path
+        uses: actions/cache@v4
+        with:
+          path: ~/.haxelib
+          key: ${{ runner.os }}-haxelib-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-haxelib-
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
       - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
-        id: setup-ndk
-        if: startsWith(matrix.os, 'ubuntu')
         with:
           ndk-version: r27c
           add-to-path: false
 
-      - name: Restore cache
-        uses: actions/cache@v4
-        with:
-          key: cache-build-${{ matrix.os }}-${{ github.sha }}
-          path: |
-            ~/.gradle
-            .haxelib/
-            /home/runner/haxelib/
-            /Users/runner/haxelib/
-            ~/.haxelib/
-            export/release/android/haxe/
-            export/release/android/obj/
-            export/release/ios/haxe/
-            export/release/ios/obj/
-          restore-keys: |
-            cache-build-${{ matrix.os }}
-
-      - name: Install Libraries
+      - name: Setup Haxelib and Dependencies
         run: |
-          haxelib install hmm --quiet
-          haxelib run hmm install --quiet
-
-      - name: Configure Android
-        if: startsWith(matrix.os, 'ubuntu')
-        run: |
+          mkdir -p ~/.haxelib
+          haxelib setup ~/.haxelib
+          haxelib install lime --quiet
+          haxelib install openfl --quiet
+          haxelib install flixel --quiet
+          haxelib install hxcpp --quiet
+          haxelib run lime setup flixel
+          haxelib remove flixel-addons --quiet
+          haxelib run lime setup
           haxelib run lime config ANDROID_SDK $ANDROID_HOME
-          haxelib run lime config ANDROID_NDK_ROOT ${{ steps.setup-ndk.outputs.ndk-path }}
+          haxelib run lime config ANDROID_NDK_ROOT $ANDROID_NDK_ROOT
           haxelib run lime config JAVA_HOME $JAVA_HOME
           haxelib run lime config ANDROID_SETUP true
+          haxelib install flixel-tools --quiet
+          haxelib install flixel-ui --quiet
+          haxelib install flixel-addons --quiet
+          haxelib install hscript --quiet
+          haxelib install hxCodec --quiet
+          haxelib install newgrounds --quiet
+          haxelib git faxe https://github.com/uhrobots/faxe --quiet
+          haxelib git polymod https://github.com/larsiusprime/polymod.git --quiet
+          haxelib git discord_rpc https://github.com/Aidan63/linc_discord-rpc --quiet
+          haxelib git extension-webm https://github.com/luckydog7/extension-webm --quiet
+          haxelib git linc_luajit https://github.com/MasterEric/linc_luajit.git --quiet
+          haxelib git hxvm-luajit https://github.com/nebulazorua/hxvm-luajit.git --quiet
+          haxelib install actuate --quiet
+          haxelib list
 
-      - name: Compile (Android)
-        if: startsWith(matrix.os, 'ubuntu')
-        run: haxelib run lime build android -final -ONLY_ARM64 ${{ inputs.buildFlags }}
+      - name: Build APK
+        run: haxelib run lime build android -final
         timeout-minutes: 180
 
-      - name: Compile (iOS)
-        if: startsWith(matrix.os, 'macos')
-        run: haxelib run lime build ios -nosign ${{ inputs.buildFlags }}
-        timeout-minutes: 180
-
-      - name: Make IPA
-        if: startsWith(matrix.os, 'macos')
-        run: |
-          brew install ldid
-          cd export/release/ios/build/Release-iphoneos/${{ env.PROJECT_NAME }}.app
-          ldid -S../../../${{ env.PROJECT_NAME }}/${{ env.PROJECT_NAME }}.entitlements ${{ env.PROJECT_NAME }}
-          cd ..
-          mkdir Payload
-          mv ${{ env.PROJECT_NAME }}.app Payload
-          zip -r ${{ env.PROJECT_NAME }}.ipa Payload
-
-      - name: Upload Artifact (Android)
-        if: startsWith(matrix.os, 'ubuntu')
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: FNF-VSLICE-Android
+          name: FNF-VSLICE-Android-APK
           path: export/release/android/bin/app/build/outputs/apk/release/*.apk
           if-no-files-found: warn
           retention-days: 90
-
-      - name: Upload Artifact (iOS)
-        if: startsWith(matrix.os, 'macos')
-        uses: actions/upload-artifact@v4
-        with:
-          name: FNF-VSLICE-iOS
-          path: export/release/ios/build/Release-iphoneos/${{ env.PROJECT_NAME }}.ipa
-          if-no-files-found: warn
-          retention-days: 90
-
-      - name: Clear Old Cache
-        uses: actions/github-script@v7
-        continue-on-error: true
-        with:
-          script: |
-            const caches = await github.rest.actions.getActionsCacheList({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-            })
-            for (const cache of caches.data.actions_caches) {
-              if (cache.key.startsWith("cache-build-${{ matrix.os }}")) {
-                console.log('Clearing ' + cache.key)
-                await github.rest.actions.deleteActionsCacheById({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  cache_id: cache.id,
-                })
-              }
-            }
-
-      - name: Upload new cache
-        uses: actions/cache@v4
-        with:
-          key: cache-build-${{ matrix.os }}-${{ github.sha }}
-          path: |
-            ~/.gradle
-            .haxelib/
-            /home/runner/haxelib/
-            /Users/runner/haxelib/
-            ~/.haxelib/
-            export/release/android/haxe/
-            export/release/android/obj/
-            export/release/ios/haxe/
-            export/release/ios/obj/
-          restore-keys: |
-            cache-build-${{ matrix.os }}
