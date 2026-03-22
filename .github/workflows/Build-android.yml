@@ -1,10 +1,7 @@
+name: Build Android APK
+
 on:
   workflow_dispatch:
-    inputs:
-      build-defines:
-        type: string
-        description: Build defines to use
-        default: '-DGITHUB_BUILD'
   push:
     branches:
       - main
@@ -13,50 +10,71 @@ on:
 jobs:
   build-android:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          fetch-depth: 1
           submodules: false
 
-      - name: Setup Java
+      - name: Setup Java 11
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '11'
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDKs
+        run: |
+          $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --install "build-tools;33.0.0"
+          $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-31"
+          $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --install "ndk;25.2.9519653"
 
       - name: Setup Haxe
         uses: krdlab/setup-haxe@v1
         with:
           haxe-version: 4.3.0
 
-      - name: Install Haxelib dependencies
+      - name: Create haxelib directory
+        run: |
+          mkdir -p ~/.haxelib
+          haxelib newrepo
+
+      - name: Install Haxe dependencies
         run: |
           haxelib install hmm
-          haxelib run hmm install
+          haxelib run hmm install -q
+          cd .haxelib/hxcpp/git/tools/hxcpp && haxe compile.hxml || true
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          api-levels: '31'
-          build-tools-version: '33.0.0'
-          ndk-version: '25.2.9519653'
-
-      - name: Build APK
-        env:
-          BUILD_DEFINES: ${{ github.event.inputs.build-defines || '-DGITHUB_BUILD' }}
+      - name: Configure build environment
         run: |
-          haxelib run lime build android -v -release $BUILD_DEFINES
-        timeout-minutes: 120
+          export ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT
+          export ANDROID_NDK_ROOT=$ANDROID_NDK_ROOT/ndk/25.2.9519653
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=$ANDROID_NDK_ROOT/ndk/25.2.9519653" >> $GITHUB_ENV
+          echo "$ANDROID_SDK_ROOT/platform-tools" >> $GITHUB_PATH
 
-      - name: Upload APK artifact
+      - name: Build APK Release
+        run: |
+          haxelib run lime build android -v -release
+        timeout-minutes: 180
+
+      - name: Upload APK to artifacts
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: fnf-android-build
+          name: FNF-Mobile-APK
           path: export/release/android/bin/app-release.apk
-          retention-days: 30
+          retention-days: 90
 
-      - name: Create Release
+      - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
