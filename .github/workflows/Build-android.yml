@@ -17,12 +17,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          submodules: false
 
       - name: Setup Java JDK
-        uses: actions/setup-java@v5.2.0
+        uses: actions/setup-java@v4
         with:
           java-version: '11'
           distribution: 'temurin'
@@ -69,7 +66,7 @@ jobs:
         timeout-minutes: 180
 
       - name: Upload a Build Artifact
-        uses: actions/upload-artifact@v3.2.2
+        uses: actions/upload-artifact@v4
         if: success()
         with:
           name: FNF-Mobile-APK
@@ -80,8 +77,8 @@ jobs:
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: export/release/android/bin/app-release.apk
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN
