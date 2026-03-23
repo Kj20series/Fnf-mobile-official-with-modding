@@ -62,13 +62,13 @@ jobs:
           haxelib run lime config JAVA_HOME $JAVA_HOME
           haxelib run lime config ANDROID_SETUP true
 
-      - name: Patch extension-webm (Fix Undeclared Identifier)
+      - name: Patch extension-webm (Improved Search)
         run: |
-          # Injects unistd.h into the files failing in NDK r25+
-          WEBM_PATH=$(haxelib libpath extension-webm | tr -d '\n')
-          sed -i '1i#include <unistd.h>' ${WEBM_PATH}libwebm/mkvmuxerutil.cpp
-          sed -i '1i#include <unistd.h>' ${WEBM_PATH}libwebm/mkvwriter.cpp
-          echo "Patched extension-webm at ${WEBM_PATH}"
+          # This finds the files wherever they are in the extension-webm folder
+          EXT_PATH=$(haxelib libpath extension-webm | tr -d '\n')
+          find "$EXT_PATH" -name "mkvmuxerutil.cpp" -exec sed -i '1i#include <unistd.h>' {} +
+          find "$EXT_PATH" -name "mkvwriter.cpp" -exec sed -i '1i#include <unistd.h>' {} +
+          echo "Patched extension-webm files found in $EXT_PATH"
 
       - name: Rebuild & Build APK
         run: |
@@ -80,7 +80,6 @@ jobs:
 
       - name: Rename & Upload APK
         run: |
-          # Find the APK regardless of the internal name and move it to root
           find export/release/android/bin/app/build/outputs/apk/release/ -name "*.apk" -exec mv {} funkin_vslice_mobile.apk \;
           
       - name: Upload Artifact
