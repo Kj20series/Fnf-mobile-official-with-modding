@@ -1,54 +1,74 @@
-name: Build FNF V-SLICE Android
-on: [push, pull_request, workflow_dispatch]
+name: Mobile Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      prerelease:
+        description: 'Mark as a pre-release? (true/false)'
+        default: 'false'
+        required: false
+
+permissions:
+  contents: write
+
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  TAG_NAME: nightly-${{ github.run_number }}
+
 jobs:
-  build:
+  create-nightly-tag:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-      - uses: krdlab/setup-haxe@v1
-        with:
-          haxe-version: 4.3.6
-      - uses: actions/cache@v4
-        with:
-          path: ~/.haxelib
-          key: ${{ runner.os }}-haxelib
-      - uses: android-actions/setup-android@v3
-      - uses: nttld/setup-ndk@v1
-        with:
-          ndk-version: r27c
-      - name: Setup Linux dependencies
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Create and push tag
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libvlc-dev libvlccore-dev libsdl2-dev libsdl2-2.0-0
-      - name: Setup Haxelib
-        run: |
-          haxelib --global install hmm
-          haxelib --global run hmm setup
-          hmm install
-      - name: Setup Lime
-        run: haxelib run lime setup
-      - name: Configure Android
-        run: |
-          haxelib run lime config ANDROID_SDK $ANDROID_HOME
-          haxelib run lime config ANDROID_NDK_ROOT $ANDROID_NDK_ROOT
-          haxelib run lime config JAVA_HOME $JAVA_HOME
-          haxelib run lime config ANDROID_SETUP true
-      - name: Rebuild Lime
-        run: haxelib run lime rebuild android -verbose
-        continue-on-error: true
-      - name: Build APK
-        run: haxelib run lime build android -final -DGITHUB_BUILD
-        timeout-minutes: 180
-      - uses: actions/upload-artifact@v4
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+          git tag ${{ env.TAG_NAME }}
+          git push origin ${{ env.TAG_NAME }}
+
+  build:
+    name: Build
+    needs: create-nightly-tag
+    uses: ./.github/workflows/mobile.yml
+    with:
+      buildFlags: officialBuild
+
+  release-android:
+    name: Release Android Build
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Android artifact
+        uses: actions/download-artifact@main
         with:
-          name: FNF-VSLICE-Android
-          path: export/release/android/bin/app/build/outputs/apk/release/*.apk
-          retention-days: 90
+          name: androidBuild
+      - name: Upload Android Build to Release
+        uses: svenstaro/upload-release-action@2.5.0
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ env.TAG_NAME }}
+          file: JSEngine-release.apk
+          asset_name: FNF-Vslice-Engine-android.apk
+          overwrite: false
+
+  release-ios:
+    name: Release iOS Build
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download iOS artifact
+        uses: actions/download-artifact@main
+        with:
+          name: iOSBuild
+      - name: Zip For Release
+        run: zip -r JSEngine-iOS.zip JSEngine.ipa
+      - name: Upload iOS Build to Release
+        uses: svenstaro/upload-release-action@2.5.0
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ env.TAG_NAME }}
+          file: JSEngine-iOS.zip
+          asset_name: FNF-Vslice-Engine-iOS.zip
+          overwrite: false
