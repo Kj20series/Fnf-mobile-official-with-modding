@@ -1,4 +1,4 @@
-name: V-Slice Mobile (Official Funkin CI)
+name: V-Slice Mobile (Final Fix)
 on: [push, pull_request, workflow_dispatch]
 
 jobs:
@@ -10,13 +10,18 @@ jobs:
         with:
           submodules: 'recursive'
 
+      - name: Install System Dependencies (Fixes bits/libc error)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib g++-multilib lbusb-1.0-0-dev libgl1-mesa-dev libglu1-mesa-dev libasound2-dev libx11-dev libxext-dev libxi-dev libxcursor-dev libxrandr-dev libxinerama-dev
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Haxe (Official Funkin Crew Action)
+      - name: Setup Haxe (Official)
         uses: FunkinCrew/ci-haxe@v3
         with:
           haxe-version: 4.3.7
@@ -24,17 +29,13 @@ jobs:
       - name: Install Global Libraries
         run: |
           haxelib setup ~/haxelib
-          # Core Frameworks
           haxelib install lime 8.1.2
           haxelib install openfl 9.3.3
           haxelib install flixel 5.5.0
           haxelib run lime setup flixel
           haxelib run lime setup
-          
-          # V-Slice / PC Dependencies
           haxelib install flixel-addons
           haxelib install flixel-ui
-          haxelib install flixel-tools
           haxelib install hscript-iris
           haxelib git funkin.vis https://github.com/FunkinCrew/funkVis.git
           
@@ -43,6 +44,9 @@ jobs:
           haxelib git hxvlc https://github.com/MAJigsaw77/hxvlc.git
           haxelib git extension-androidtools https://github.com/MAJigsaw77/extension-androidtools.git
           
+          # Fix for NDK r25 stability (Installs latest hxcpp from git)
+          haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp.git
+          
           haxelib upgrade -y
 
       - name: Setup Android NDK (r25c)
@@ -50,27 +54,23 @@ jobs:
         with:
           ndk-version: r25c
 
-      - name: Configure Lime for Android
+      - name: Configure Lime
         run: |
           haxelib run lime config ANDROID_SDK $ANDROID_HOME
           haxelib run lime config ANDROID_NDK_ROOT $ANDROID_NDK_HOME
           haxelib run lime config JAVA_HOME $JAVA_HOME
           haxelib run lime config ANDROID_SETUP true
 
-      - name: Rebuild Extensions
+      - name: Rebuild & Build APK
         run: |
           haxelib run lime rebuild extension-webm android
           haxelib run lime rebuild hxvlc android
-
-      - name: Build Final APK
-        run: |
           haxelib run lime build android -final \
           -DAPP_TITLE="Friday Night Funkin Vslice mobile" \
           -DAPP_PACKAGE="com.Funkin.Mobile"
 
       - name: Rename & Upload APK
         run: |
-          # Find the generated APK and move it to the root
           find export/release/android/bin/app/build/outputs/apk/release/ -name "*.apk" -exec mv {} funkin_vslice_mobile.apk \;
           
       - name: Upload Artifact
