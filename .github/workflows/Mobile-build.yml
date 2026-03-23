@@ -15,7 +15,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-multilib g++-multilib libusb-1.0-0-dev libgl1-mesa-dev libglu1-mesa-dev
 
-      - name: Setup Java & Haxe
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -29,15 +29,20 @@ jobs:
       - name: Install Haxelibs
         run: |
           haxelib setup ~/haxelib
-          haxelib install lime 8.1.2 --never
-          haxelib install openfl 9.3.3 --never
+          # Downgrading to recommended stable versions for V-Slice 0.8.3
+          haxelib install lime 8.0.2 --never
+          haxelib install openfl 9.2.1 --never
+          
+          # Core Funkin' Crew Forks
           haxelib git flixel https://github.com/FunkinCrew/flixel.git --never
           haxelib install flixel-addons --never
           haxelib install flixel-ui --never
           haxelib install hxp --never
-          # Official FunkinCrew animation and sound forks
-          haxelib git flxanimate https://github.com/FunkinCrew/flxanimate.git --never
+          
+          # CRITICAL: Official flxanimate using 'dev' branch for internal classes
+          haxelib git flxanimate https://github.com/FunkinCrew/flxanimate.git dev --never
           haxelib git flxpartialsound https://github.com/FunkinCrew/FlxPartialSound.git --never
+          
           # Other core dependencies
           haxelib git funkin.vis https://github.com/FunkinCrew/funkVis.git --never
           haxelib git hxvlc https://github.com/MAJigsaw77/hxvlc.git --never
