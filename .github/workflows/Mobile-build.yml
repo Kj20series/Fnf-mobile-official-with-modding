@@ -62,23 +62,23 @@ jobs:
           haxelib run lime config JAVA_HOME $JAVA_HOME
           haxelib run lime config ANDROID_SETUP true
 
-      - name: Patch extension-webm (Improved Search)
+      - name: Patch extension-webm
         run: |
           EXT_PATH=$(haxelib libpath extension-webm | tr -d '\n')
           find "$EXT_PATH" -name "mkvmuxerutil.cpp" -exec sed -i '1i#include <unistd.h>' {} +
           find "$EXT_PATH" -name "mkvwriter.cpp" -exec sed -i '1i#include <unistd.h>' {} +
-          echo "Patched extension-webm files found in $EXT_PATH"
 
       - name: Rebuild & Build APK
         run: |
-          # The Fix: Adding -v7 and -64 ensures hxcpp finds a target
-          haxelib run lime rebuild extension-webm android -v7
-          haxelib run lime rebuild extension-webm android -64
-          haxelib run lime rebuild hxvlc android -v7
-          haxelib run lime rebuild hxvlc android -64
+          # The key fix: Using the exact lib folder names as defines
+          haxelib run lime rebuild extension-webm android -v7 -D"armeabi-v7a"
+          haxelib run lime rebuild extension-webm android -64 -D"arm64-v8a"
+          haxelib run lime rebuild hxvlc android -v7 -D"armeabi-v7a"
+          haxelib run lime rebuild hxvlc android -64 -D"arm64-v8a"
           
-          # Final APK Build
-          haxelib run lime build android -final \
+          # Final APK Build targeting the exact ABIs
+          haxelib run lime build android -final -v7 -64 \
+          -D"armeabi-v7a" -D"arm64-v8a" \
           -DAPP_TITLE="Friday Night Funkin Vslice mobile" \
           -DAPP_PACKAGE="com.Funkin.Mobile"
 
