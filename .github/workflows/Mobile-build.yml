@@ -1,4 +1,4 @@
-name: V-Slice Mobile XML Build
+name: V-Slice Mobile Build
 on: [push, pull_request, workflow_dispatch]
 
 jobs:
@@ -54,11 +54,21 @@ jobs:
 
       - name: Final Build
         run: |
-          # Targeting Project.xml to avoid HXP initialization issues
-          haxelib run lime build Project.xml android -final -64 -v
+          # Use find to locate the project file to prevent 'not found' errors
+          PROJECT_FILE=$(find . -maxdepth 2 -iname "project.xml" -print -quit)
+          
+          if [ -z "$PROJECT_FILE" ]; then
+            echo "❌ CRITICAL ERROR: project.xml not found!"
+            ls -R
+            exit 1
+          fi
+          
+          echo "✅ Building with: $PROJECT_FILE"
+          haxelib run lime build "$PROJECT_FILE" android -final -64 -v
 
-      - name: Upload Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: VSlice-Mobile-Modded
           path: export/android/bin/app/build/outputs/apk/release/*.apk
+          
