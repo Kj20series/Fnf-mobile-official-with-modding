@@ -13,7 +13,8 @@ jobs:
       - name: Install System Dependencies (Fixes bits/libc error)
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-multilib g++-multilib lbusb-1.0-0-dev libgl1-mesa-dev libglu1-mesa-dev libasound2-dev libx11-dev libxext-dev libxi-dev libxcursor-dev libxrandr-dev libxinerama-dev
+          # Fixed the libusb typo and cleaned up the list
+          sudo apt-get install -y gcc-multilib g++-multilib libusb-1.0-0-dev libgl1-mesa-dev libglu1-mesa-dev
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -44,7 +45,7 @@ jobs:
           haxelib git hxvlc https://github.com/MAJigsaw77/hxvlc.git
           haxelib git extension-androidtools https://github.com/MAJigsaw77/extension-androidtools.git
           
-          # Fix for NDK r25 stability (Installs latest hxcpp from git)
+          # Fix for NDK r25 stability
           haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp.git
           
           haxelib upgrade -y
