@@ -1,4 +1,4 @@
-name: V-Slice Mobile (Global Libs Build)
+name: V-Slice Mobile (Global & Fixed Path)
 on: [push, pull_request, workflow_dispatch]
 
 jobs:
@@ -8,7 +8,7 @@ jobs:
       - name: Checkout Source
         uses: actions/checkout@v4
         with:
-          submodules: 'recursive' # Keeps the PC asset structure
+          submodules: 'recursive'
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -16,34 +16,29 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install Haxe 4.3.7 (Manual Stable Download)
+      - name: Install Haxe 4.3.7
         run: |
           wget https://github.com/HaxeFoundation/haxe/releases/download/4.3.7/haxe-4.3.7-linux64.tar.gz
           mkdir -p ~/haxe && tar -xf haxe-4.3.7-linux64.tar.gz -C ~/haxe
+          # This line is the fix: it tells GitHub where haxe and haxelib are
           echo "$HOME/haxe/haxe-4.3.7" >> $GITHUB_PATH
-          export HAXEPATH=$HOME/haxe/haxe-4.3.7
 
-      - name: Install Global Libraries (The PC Way)
+      - name: Install Global Libraries
         run: |
-          haxelib setup ~/haxelib
-          # Core Framework
+          # Use the full path for the first setup to be safe
+          $HOME/haxe/haxe-4.3.7/haxelib setup ~/haxelib
           haxelib install lime 8.1.2
           haxelib install openfl 9.3.3
           haxelib install flixel 5.5.0
           haxelib run lime setup flixel
           haxelib run lime setup
-          
-          # Essential PC/V-Slice Global Libs
           haxelib install flixel-addons
           haxelib install flixel-ui
           haxelib install hscript-iris
           haxelib git funkin.vis https://github.com/FunkinCrew/funkVis.git
-          
-          # Verified Mobile Sync & Stability Libs
           haxelib git extension-webm https://github.com/GrowtopiaFli/extension-webm
           haxelib git hxvlc https://github.com/MAJigsaw77/hxvlc.git
           haxelib git extension-androidtools https://github.com/MAJigsaw77/extension-androidtools.git
-          
           haxelib upgrade -y
 
       - name: Setup Android NDK (r25c)
@@ -58,16 +53,19 @@ jobs:
           haxelib run lime config JAVA_HOME $JAVA_HOME
           haxelib run lime config ANDROID_SETUP true
 
-      - name: Global Rebuild & Compile
+      - name: Rebuild & Build APK
         run: |
           haxelib run lime rebuild extension-webm android
           haxelib run lime rebuild hxvlc android
+          # THE BUILD PART: This creates the APK
           haxelib run lime build android -final \
           -DAPP_TITLE="Friday Night Funkin': Vslice mobile" \
           -DAPP_PACKAGE="com.Funkin.Mobile"
 
-      - name: Upload Artifact
+      - name: Upload Finished APK
         uses: actions/upload-artifact@v4
         with:
           name: VSlice-Mobile-Global
+          # This is the path where the APK is generated
           path: export/release/android/bin/app/build/outputs/apk/release/*.apk
+  
