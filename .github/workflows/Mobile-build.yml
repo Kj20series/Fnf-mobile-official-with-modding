@@ -42,7 +42,6 @@ jobs:
           haxelib install hxp
           haxelib install hxtools 1.1.6
           
-          # Git Repos (Stable HTTPS URLs)
           haxelib git funkin.vis https://github.com/FunkinCrew/funkVis --never
           haxelib git extension-webm https://github.com/GrowtopiaFli/extension-webm --never
           haxelib git hxvlc https://github.com/MAJigsaw77/hxvlc --never
@@ -77,27 +76,25 @@ jobs:
 
       - name: Rebuild & Build APK
         run: |
-          haxelib run lime rebuild extension-webm android -v7 -64
-          haxelib run lime rebuild hxvlc android -v7 -64
+          # Rebuild extensions specifically for 64-bit
+          haxelib run lime rebuild extension-webm android -64
+          haxelib run lime rebuild hxvlc android -64
           
-          # TARGETING project.hxp
-          haxelib run lime build project.hxp android -final -v7 -64 \
-          -D"armeabi-v7a" -D"arm64-v8a" \
+          # BUILD TARGETING ARM64 ONLY
+          # We add -D HXCPP_ARM64 to solve the 'Please set architecture' error
+          haxelib run lime build project.hxp android -final -64 \
+          -D"arm64-v8a" \
+          -D HXCPP_ARM64 \
           -DGITHUB_BUILD \
           -DFEATURE_TOUCH_CONTROLS \
           -DFEATURE_VIDEO_PLAYBACK
 
       - name: Rename & Upload APK
         run: |
-          find export/ -name "*.apk" -exec mv {} funkin_vslice_mobile.apk \;
+          find export/ -name "*.apk" -exec mv {} funkin_vslice_mobile_arm64.apk \;
           
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VSlice-Mobile-Final
-          path: funkin_vslice_mobile.apk
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: VSlice-Mobile-Final
-          path: funkin_vslice_mobile.apk
+          name: VSlice-Mobile-ARM64
+          path: funkin_vslice_mobile_arm64.apk
