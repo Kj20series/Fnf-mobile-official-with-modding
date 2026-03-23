@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project>
+	<meta title="FNF V-Slice Mobile" package="com.vslice.mobile.modded" version="0.8.3" company="The Funkin' Crew" />
+	
+	<app main="Main" file="Funkin" path="export" />
+	<app preloader="funkin.ui.transition.preload.FunkinPreloader" />
+	
+	<window width="1280" height="720" fps="60" background="#000000" hardware="true" vsync="false" />
+	<window if="mobile" orientation="landscape" fullscreen="true" resizable="false" />
+
+	<source path="source" />
+	<assets path="assets" rename="assets" exclude="*.md|*.txt" />
+
+	<haxelib name="flixel" version="5.5.0" />
+	<haxelib name="flixel-addons" />
+	<haxelib name="flixel-ui" />
+	<haxelib name="hscript-iris" />
+	<haxelib name="funkin.vis" />
+	<haxelib name="hxvlc" />
+	<haxelib name="extension-androidtools" />
+	<haxelib name="polymod" />
+	<haxelib name="thx.core" />
+
+	<section if="android">
+		<config android:install-location="auto" />
+		<config android:min-sdk-version="26" />
+		<config android:target-sdk-version="34" />
+		
+		<architecture name="arm64" />
+		<set name="HXCPP_ARM64" />
+
+		<android permission="android.permission.READ_EXTERNAL_STORAGE" />
+		<android permission="android.permission.WRITE_EXTERNAL_STORAGE" />
+		<android permission="android.permission.MANAGE_EXTERNAL_STORAGE" />
+		<android attribute="android:requestLegacyExternalStorage" value="true" />
+	</section>
+
+	<haxedef name="loop_unroll" />
+	<haxedef name="FEATURE_TOUCH_CONTROLS" if="mobile" />
+	<haxedef name="FEATURE_VIDEO_PLAYBACK" />
+	<haxedef name="GITHUB_BUILD" />
+</project>
+
