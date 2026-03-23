@@ -36,19 +36,30 @@ jobs:
 
       - name: Install Global Libraries
         run: |
+          # Core V-Slice Requirements
           haxelib install lime 8.1.2
           haxelib install openfl 9.3.3
           haxelib install flixel 5.5.0
-          haxelib install hxp  # REQUIRED for project.hxp
+          haxelib install hxp
+          haxelib git hx-tools https://github.com/FunkinCrew/hx-tools.git
+          
+          # Setup Lime/Flixel
           haxelib run lime setup flixel
           haxelib run lime setup
+          
+          # Additional Libraries
           haxelib install flixel-addons
           haxelib install flixel-ui
           haxelib install hscript-iris
+          haxelib install polymod
+          haxelib install thx.core
+          
+          # Git Repos
           haxelib git funkin.vis https://github.com/FunkinCrew/funkVis.git
           haxelib git extension-webm https://github.com/GrowtopiaFli/extension-webm
           haxelib git hxvlc https://github.com/MAJigsaw77/hxvlc.git
           haxelib git extension-androidtools https://github.com/MAJigsaw77/extension-androidtools.git
+          
           haxelib upgrade -y
 
       - name: Setup Android NDK (r25c)
@@ -71,21 +82,22 @@ jobs:
 
       - name: Rebuild & Build APK
         run: |
-          # Rebuilding extensions (they use their own internal Build.xml)
+          # Rebuild extensions
           haxelib run lime rebuild extension-webm android -v7 -64
           haxelib run lime rebuild hxvlc android -v7 -64
           
-          # TARGETING project.hxp specifically
-          # Note: If project.hxp is in a subfolder, change '.' to that folder name
+          # BUILD USING PROJECT.HXP
+          # We pass -64 and -v7 for max compatibility. 
+          # We include -DGITHUB_BUILD because your HXP checks for it.
           haxelib run lime build project.hxp android -final -v7 -64 \
           -D"armeabi-v7a" -D"arm64-v8a" \
-          -DAPP_TITLE="Friday Night Funkin Vslice mobile" \
-          -DAPP_PACKAGE="com.Funkin.Mobile"
+          -DGITHUB_BUILD \
+          -DFEATURE_TOUCH_CONTROLS \
+          -DFEATURE_VIDEO_PLAYBACK
 
       - name: Rename & Upload APK
         run: |
-          # V-Slice builds usually output to export/release/android/bin/app/build/outputs/apk/release/
-          # but we'll use a recursive find to be safe
+          # V-Slice build path check
           find export/ -name "*.apk" -exec mv {} funkin_vslice_mobile.apk \;
           
       - name: Upload Artifact
