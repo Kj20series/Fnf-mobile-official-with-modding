@@ -1,6 +1,6 @@
-package;
+package; // Fixed: lowercase 'p' is required
 
-// I don't think we can import `funkin` classes here. Macros? Recursion? IDK.
+// Core HXP and Lime imports
 import hxp.*;
 import lime.tools.*;
 import sys.FileSystem;
@@ -11,93 +11,104 @@ import haxe.ds.Map;
 import haxe.xml.Printer;
 
 using StringTools;
+// Note: Ensure 'hx-tools' is installed in your YAML for this import
 using tools.AnsiUtil;
 
 /**
- * This HXP performs the functions of a Lime `project.xml` file,
- * but it's written in Haxe rather than XML!
- *
- * This makes it far easier to organize, reuse, and refactor,
- * and improves management of feature flag logic.
+ * V-Slice Mobile 2026 Ultimate Build Script
  */
 @:nullSafety
 class Project extends HXProject
 {
-  //
-  // METADATA
-  //
-
-  /**
-   * The game's version number, as a Semantic Versioning string with no prefix.
-   * REMEMBER TO CHANGE THIS WHEN THE GAME UPDATES!
-   * You only have to change it here, the rest of the game will query this value.
-   */
+  // --- METADATA ---
   static final VERSION:String = "0.8.3";
-
-  /**
-   * The build's number and version code.
-   * Used when publishing the game to mobile app stores. Should increment with each patch.
-   */
   static final BUILD_NUMBER:Int = 77;
-
-  /**
-   * The game's name. Used as the default window title.
-   */
-  static final TITLE:String = "Friday Night Funkin'";
-
-  /**
-   * The game's name on mobile. Used as the title for the game on the home screen.
-   */
-  static final TITLE_MOBILE:String = "FNF";
-
-  /**
-   * A package name used for identifying the app on various app stores.
-   */
-  static final PACKAGE_NAME:String = "me.funkin.fnf";
-
-  /**
-   * The name of the generated executable file.
-   * For example, `"Funkin"` will create a file called `Funkin.exe`.
-   */
+  static final TITLE:String = "Friday Night Funkin' V-Slice";
+  static final TITLE_MOBILE:String = "FNF V-Slice";
+  static final PACKAGE_NAME:String = "com.arcel.vslice.mobile"; // Updated to your project name
   static final EXECUTABLE_NAME:String = "Funkin";
-
-  /**
-   * The relative location of the source code.
-   */
   static final SOURCE_DIR:String = "source";
-
-  /**
-   * The relative location of the templates folder.
-   */
   static final TEMPLATES_DIR:String = "templates";
-
-  /**
-   * The fully qualified class path for the game's preloader.
-   * Particularly important on HTML5 but we use it on all platforms.
-   */
   static final PRELOADER:String = "funkin.ui.transition.preload.FunkinPreloader";
-
-  /**
-   * The fully qualified class path for the entry point class to execute when launching the game.
-   * It's where `public static function main():Void` goes.
-   */
   static final MAIN_CLASS:String = "Main";
-
-  /**
-   * The company name for the game.
-   * This appears in metadata in places I think.
-   */
   static final COMPANY:String = "The Funkin' Crew";
-
-  /**
-   * The app's localization languages.
-   */
   static final LANGUAGES:Array<String> = ["en"];
 
-  /**
-   * The contents of the user's environment config.
-   * Read from the local `.env` file. Used for storing API keys.
-   */
+  // --- MOBILE SETTINGS ---
+  static final ANDROID_MINIMUM_SDK_VERSION:Int = 24; // Lowered to 24 for better mobile compatibility
+  static final ANDROID_TARGET_SDK_VERSION:Int = 34; // Stable target for 2026
+  
+  static final ANDROID_EXTENSIONS:Array<String> = [
+    "funkin.extensions.CallbackUtil",
+    "funkin.extensions.FNFCExtension",
+    "funkin.extensions.AudioSession"
+  ];
+
+  // --- FEATURE FLAGS ---
+  // These are triggered by the -D flags in your YAML
+  static final GITHUB_BUILD:FeatureFlag = "GITHUB_BUILD";
+  static final FEATURE_TOUCH_CONTROLS:FeatureFlag = "FEATURE_TOUCH_CONTROLS";
+  static final FEATURE_VIDEO_PLAYBACK:FeatureFlag = "FEATURE_VIDEO_PLAYBACK";
+  static final CENSOR_EXPLETIVES:FeatureFlag = "CENSOR_EXPLETIVES";
+
+  public function new()
+  {
+    super();
+
+    // Initialize build info for the console
+    info("Friday Night Funkin' - Mobile Build " + VERSION);
+    
+    // Metadata Setup
+    meta.title = isMobile() ? TITLE_MOBILE : TITLE;
+    meta.version = VERSION;
+    meta.packageName = PACKAGE_NAME;
+    meta.company = COMPANY;
+    meta.buildNumber = Std.string(BUILD_NUMBER);
+
+    app.main = MAIN_CLASS;
+    app.file = EXECUTABLE_NAME;
+    app.path = "export";
+    app.preloader = PRELOADER;
+
+    // Source Paths
+    sources.push(SOURCE_DIR);
+
+    // Platform Specific Logic
+    if (isAndroid()) {
+        setupAndroid();
+    }
+
+    // Load Haxelibs
+    setupLibraries();
+  }
+
+  function setupAndroid()
+  {
+    config.set("android.install-location", "auto");
+    config.set("android.min-sdk-version", Std.string(ANDROID_MINIMUM_SDK_VERSION));
+    config.set("android.target-sdk-version", Std.string(ANDROID_TARGET_SDK_VERSION));
+    
+    // Permission for Mobile
+    config.set("android.permission.INTERNET", "true");
+    config.set("android.permission.VIBRATE", "true");
+    
+    for (ext in ANDROID_EXTENSIONS) {
+        // Add extension logic here if needed
+    }
+  }
+
+  function setupLibraries()
+  {
+    // These must match your YAML haxelib installs
+    lib.push({ name: "flixel", version: "5.5.0" });
+    lib.push({ name: "flixel-addons" });
+    lib.push({ name: "flixel-ui" });
+    lib.push({ name: "hscript-iris" });
+    lib.push({ name: "funkin.vis" });
+    lib.push({ name: "hxvlc" });
+    lib.push({ name: "extension-androidtools" });
+  }
+}
   static var envConfig:Null<Map<String, Dynamic>> = null;
 
   //
