@@ -35,14 +35,15 @@ jobs:
           haxelib install flixel-addons --never
           haxelib install flixel-ui --never
           haxelib install hxp --never
-          haxelib git flxanimate https://github.com/Dot-S0/FlxAnimate.git --never
+          # Updated to Dot-Stuff/flxanimate as requested
+          haxelib git flxanimate https://github.com/Dot-Stuff/flxanimate.git --never
           haxelib git funkin.vis https://github.com/FunkinCrew/funkVis.git --never
           haxelib git hxvlc https://github.com/MAJigsaw77/hxvlc.git --never
           haxelib git extension-androidtools https://github.com/MAJigsaw77/extension-androidtools.git --never
           haxelib install hscript-iris --never
           haxelib install polymod --never
           haxelib install thx.core --never
-          haxelib git grig.audio https://gitlab.com/grig-io/grig.audio.git --never
+          haxelib git grig.audio https://github.com/osakared/grig.audio.git --never
 
       - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
