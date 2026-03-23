@@ -8,44 +8,53 @@ jobs:
       - name: Checkout Source
         uses: actions/checkout@v4
         with:
-          submodules: 'recursive' # Keeps the PC structure for downloading assets
+          submodules: 'recursive' # Required for V-Slice assets/submodules
 
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17' # Latest stable standard for modern Android Gradle builds
+          java-version: '17'
 
       - name: Setup Haxe
         uses: krdlab/setup-haxe@v1
         with:
-          haxe-version: 'latest' # Forces the absolute latest Haxe version
+          haxe-version: 'latest'
 
-      - name: Install HMM and PC Dependencies
+      - name: Install PC Dependencies (via HMM)
         run: |
           haxelib setup ~/haxelib
           haxelib install hmm
           haxelib run hmm setup
-          haxelib run hmm install # Pulls all dependencies from the PC hmm.json
+          haxelib run hmm install
           
-          # Force the specific webm fork for audio sync
-          haxelib git extension-webm https://github.com/KlavierGayming/extension-webm
+          # Verified 2026 Link for WebM (Fixes audio sync & renderedFrames)
+          haxelib git extension-webm https://github.com/GrowtopiaFli/extension-webm
+          
+          # Official Funkin Visualization library (Required for V-Slice menus)
+          haxelib git funkin.vis https://github.com/FunkinCrew/funkVis
+          
+          # Critical for Android Video support in V-Slice
+          haxelib git hxvlc https://github.com/MAJigsaw77/hxvlc.git
+          
           haxelib upgrade -y
 
       - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r25c # Modern, stable NDK for latest Android targets
+          ndk-version: r25c
 
-      - name: Configure Lime for Android
+      - name: Configure Lime
         run: |
           haxelib run lime config ANDROID_SDK $ANDROID_HOME
           haxelib run lime config ANDROID_NDK_ROOT $ANDROID_NDK_HOME
           haxelib run lime config JAVA_HOME $JAVA_HOME
           haxelib run lime config ANDROID_SETUP true
 
-      - name: Rebuild Extension Webm (Android Target)
-        run: haxelib run lime rebuild extension-webm android
+      - name: Rebuild Extensions
+        run: |
+          haxelib run lime rebuild extension-webm android
+          haxelib run lime rebuild hxvlc android
 
       - name: Compile APK
         run: |
