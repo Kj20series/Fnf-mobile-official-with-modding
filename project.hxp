@@ -4,10 +4,6 @@ import hxp.*;
 import lime.tools.*;
 import sys.FileSystem;
 import sys.io.File;
-import haxe.io.Bytes;
-import haxe.io.Path;
-import haxe.ds.Map;
-import haxe.xml.Printer;
 
 using StringTools;
 using hxtools.AnsiUtil; 
@@ -16,20 +12,16 @@ using hxtools.AnsiUtil;
 class Project extends HXProject
 {
   static final VERSION:String = "0.8.3";
-  static final BUILD_NUMBER:Int = 77;
-  static final TITLE:String = "Friday Night Funkin' V-Slice";
   static final PACKAGE_NAME:String = "com.arcel.vslice.mobile";
 
   public function new()
   {
     super();
 
-    Sys.println("Building FNF V-Slice Mobile (ARM64 Optimized)");
-
-    meta.title = isMobile() ? "FNF V-Slice" : TITLE;
+    meta.title = "FNF V-Slice Mobile";
     meta.version = VERSION;
     meta.packageName = PACKAGE_NAME;
-    meta.buildNumber = Std.string(BUILD_NUMBER);
+    meta.company = "The Funkin' Crew";
 
     app.main = "Main";
     app.file = "Funkin";
@@ -39,11 +31,14 @@ class Project extends HXProject
 
     if (isAndroid())
     {
+      // FORCE ARCHITECTURE HERE
+      config.set("android.architectures", "arm64-v8a");
+      
+      // THIS TELLS HXCPP TO STOP COMPLAINING
+      haxedefs.set("HXCPP_ARM64", "1"); 
+      
       config.set("android.min-sdk-version", "26");
       config.set("android.target-sdk-version", "34");
-      
-      // Force arm64-v8a architecture in the build config
-      config.set("android.architectures", "arm64-v8a");
     }
 
     setupLibraries();
