@@ -1,4 +1,4 @@
-name: V-Slice Mobile (2026 Bulletproof Build)
+name: V-Slice Mobile (Official Funkin CI)
 on: [push, pull_request, workflow_dispatch]
 
 jobs:
@@ -8,7 +8,7 @@ jobs:
       - name: Checkout Source
         uses: actions/checkout@v4
         with:
-          submodules: 'recursive' # Clones the funkin.assets PC folder
+          submodules: 'recursive'
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -16,29 +16,15 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install Neko & Haxe (Manual Path Fix)
-        run: |
-          # 1. Install Neko first (Haxelib requires this to run)
-          sudo apt-get update && sudo apt-get install -y neko
-          
-          # 2. Download and Extract Haxe 4.3.7
-          wget https://github.com/HaxeFoundation/haxe/releases/download/4.3.7/haxe-4.3.7-linux64.tar.gz
-          mkdir -p ~/haxe-dist
-          tar -xf haxe-4.3.7-linux64.tar.gz -C ~/haxe-dist
-          
-          # 3. Find the exact folder and set paths (Auto-Detection)
-          HAXE_DIR=$(find ~/haxe-dist -maxdepth 1 -type d -name "haxe-*" | head -n 1)
-          echo "Haxe found at: $HAXE_DIR"
-          chmod +x $HAXE_DIR/haxe $HAXE_DIR/haxelib
-          echo "$HAXE_DIR" >> $GITHUB_PATH
-          echo "HAXEPATH=$HAXE_DIR" >> $GITHUB_ENV
-          
+      - name: Setup Haxe (Official Funkin Crew Action)
+        uses: FunkinCrew/ci-haxe@v3
+        with:
+          haxe-version: 4.3.7
+
       - name: Install Global Libraries
         run: |
-          # Use absolute path for the very first setup
-          $HAXEPATH/haxelib setup ~/haxelib
-          
-          # Core Frameworks (Stable Versions for V-Slice)
+          haxelib setup ~/haxelib
+          # Core Frameworks
           haxelib install lime 8.1.2
           haxelib install openfl 9.3.3
           haxelib install flixel 5.5.0
@@ -52,7 +38,7 @@ jobs:
           haxelib install hscript-iris
           haxelib git funkin.vis https://github.com/FunkinCrew/funkVis.git
           
-          # Verified Mobile Forks (GrowtopiaFli = renderedFrames Fix)
+          # Verified Mobile Sync & Stability Libs
           haxelib git extension-webm https://github.com/GrowtopiaFli/extension-webm
           haxelib git hxvlc https://github.com/MAJigsaw77/hxvlc.git
           haxelib git extension-androidtools https://github.com/MAJigsaw77/extension-androidtools.git
@@ -73,21 +59,19 @@ jobs:
 
       - name: Rebuild Extensions
         run: |
-          # Compiles the C++ code specifically for Android
           haxelib run lime rebuild extension-webm android
           haxelib run lime rebuild hxvlc android
 
       - name: Build Final APK
         run: |
-          # Removed the colon (:) from the title to prevent artifact errors
           haxelib run lime build android -final \
           -DAPP_TITLE="Friday Night Funkin Vslice mobile" \
           -DAPP_PACKAGE="com.Funkin.Mobile"
 
       - name: Rename & Upload APK
         run: |
-          # Finds the APK and renames it to something simple for the artifact
-          mv export/release/android/bin/app/build/outputs/apk/release/*.apk funkin_vslice_mobile.apk
+          # Find the generated APK and move it to the root
+          find export/release/android/bin/app/build/outputs/apk/release/ -name "*.apk" -exec mv {} funkin_vslice_mobile.apk \;
           
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
