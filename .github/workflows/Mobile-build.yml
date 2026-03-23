@@ -39,6 +39,7 @@ jobs:
           haxelib install lime 8.1.2
           haxelib install openfl 9.3.3
           haxelib install flixel 5.5.0
+          haxelib install hxp  # REQUIRED for project.hxp
           haxelib run lime setup flixel
           haxelib run lime setup
           haxelib install flixel-addons
@@ -70,21 +71,22 @@ jobs:
 
       - name: Rebuild & Build APK
         run: |
-          # The key fix: Using the exact lib folder names as defines
-          haxelib run lime rebuild extension-webm android -v7 -D"armeabi-v7a"
-          haxelib run lime rebuild extension-webm android -64 -D"arm64-v8a"
-          haxelib run lime rebuild hxvlc android -v7 -D"armeabi-v7a"
-          haxelib run lime rebuild hxvlc android -64 -D"arm64-v8a"
+          # Rebuilding extensions (they use their own internal Build.xml)
+          haxelib run lime rebuild extension-webm android -v7 -64
+          haxelib run lime rebuild hxvlc android -v7 -64
           
-          # Final APK Build targeting the exact ABIs
-          haxelib run lime build android -final -v7 -64 \
+          # TARGETING project.hxp specifically
+          # Note: If project.hxp is in a subfolder, change '.' to that folder name
+          haxelib run lime build project.hxp android -final -v7 -64 \
           -D"armeabi-v7a" -D"arm64-v8a" \
           -DAPP_TITLE="Friday Night Funkin Vslice mobile" \
           -DAPP_PACKAGE="com.Funkin.Mobile"
 
       - name: Rename & Upload APK
         run: |
-          find export/release/android/bin/app/build/outputs/apk/release/ -name "*.apk" -exec mv {} funkin_vslice_mobile.apk \;
+          # V-Slice builds usually output to export/release/android/bin/app/build/outputs/apk/release/
+          # but we'll use a recursive find to be safe
+          find export/ -name "*.apk" -exec mv {} funkin_vslice_mobile.apk \;
           
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
