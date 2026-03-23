@@ -41,6 +41,9 @@ jobs:
           haxelib run lime config ANDROID_NDK_ROOT $ANDROID_NDK_ROOT
           haxelib run lime config JAVA_HOME $JAVA_HOME
           haxelib run lime config ANDROID_SETUP true
+      - name: Rebuild Lime
+        run: haxelib run lime rebuild android -verbose
+        continue-on-error: true
       - name: Build APK
         run: haxelib run lime build android -final -DGITHUB_BUILD
         timeout-minutes: 180
