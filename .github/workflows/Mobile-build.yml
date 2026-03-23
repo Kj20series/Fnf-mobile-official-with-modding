@@ -25,7 +25,7 @@ jobs:
         with:
           ndk-version: r27c
       - name: Setup Linux dependencies
-        run: sudo apt install libvlc-dev libvlccore-dev libvlccore9 -y
+        run: sudo apt install libvlc-dev libvlccore-dev libvlccore9 libsdl2-dev -y
       - name: Setup Haxelib
         run: |
           haxelib --global install hmm
