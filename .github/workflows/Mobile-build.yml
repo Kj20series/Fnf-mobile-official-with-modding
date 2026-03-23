@@ -33,6 +33,8 @@ jobs:
           hmm install
       - name: Setup Lime
         run: haxelib run lime setup
+      - name: Rebuild Lime for Android
+        run: haxelib run lime rebuild android
       - name: Configure Android
         run: |
           haxelib run lime config ANDROID_SDK $ANDROID_HOME
