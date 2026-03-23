@@ -1,4 +1,4 @@
-name: V-Slice Mobile (2026 Ultimate Build)
+name: V-Slice Mobile ARM64
 on: [push, pull_request, workflow_dispatch]
 
 jobs:
@@ -10,53 +10,38 @@ jobs:
         with:
           submodules: 'recursive'
 
-      - name: Install System Dependencies
+      - name: Setup Environment
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-multilib g++-multilib libusb-1.0-0-dev libgl1-mesa-dev libglu1-mesa-dev
 
-      - name: Setup Java
+      - name: Setup Java & Haxe
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-
+      
       - name: Setup Haxe
         uses: FunkinCrew/ci-haxe@v3
         with:
           haxe-version: 4.3.7
 
-      - name: Install & Compile hxcpp (Tool Fix)
+      - name: Install Libraries
         run: |
           haxelib setup ~/haxelib
-          haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp --never
-          cd ~/haxelib/hxcpp/git/tools/hxcpp
-          haxe compile.hxml
-          cd ${{ github.workspace }}
-
-      - name: Install Global Libraries
-        run: |
           haxelib install lime 8.1.2
           haxelib install openfl 9.3.3
           haxelib install flixel 5.5.0
           haxelib install hxp
           haxelib install hxtools 1.1.6
-          
           haxelib git funkin.vis https://github.com/FunkinCrew/funkVis --never
-          haxelib git extension-webm https://github.com/GrowtopiaFli/extension-webm --never
           haxelib git hxvlc https://github.com/MAJigsaw77/hxvlc --never
           haxelib git extension-androidtools https://github.com/MAJigsaw77/extension-androidtools --never
-          
-          haxelib run lime setup flixel
-          haxelib run lime setup
-          haxelib install flixel-addons
-          haxelib install flixel-ui
           haxelib install hscript-iris
           haxelib install polymod
           haxelib install thx.core
-          haxelib upgrade -y
 
-      - name: Setup Android NDK (r25c)
+      - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
         with:
           ndk-version: r25c
@@ -68,33 +53,13 @@ jobs:
           haxelib run lime config JAVA_HOME $JAVA_HOME
           haxelib run lime config ANDROID_SETUP true
 
-      - name: Patch extension-webm
+      - name: Final Build
         run: |
-          EXT_PATH=$(haxelib libpath extension-webm | tr -d '\n')
-          find "$EXT_PATH" -name "mkvmuxerutil.cpp" -exec sed -i '1i#include <unistd.h>' {} +
-          find "$EXT_PATH" -name "mkvwriter.cpp" -exec sed -i '1i#include <unistd.h>' {} +
+          # The -64 flag here works with the internal HXP fix
+          haxelib run lime build project.hxp android -final -64 -D HXCPP_ARM64
 
-      - name: Rebuild & Build APK
-        run: |
-          # Rebuild extensions specifically for 64-bit
-          haxelib run lime rebuild extension-webm android -64
-          haxelib run lime rebuild hxvlc android -64
-          
-          # BUILD TARGETING ARM64 ONLY
-          # We add -D HXCPP_ARM64 to solve the 'Please set architecture' error
-          haxelib run lime build project.hxp android -final -64 \
-          -D"arm64-v8a" \
-          -D HXCPP_ARM64 \
-          -DGITHUB_BUILD \
-          -DFEATURE_TOUCH_CONTROLS \
-          -DFEATURE_VIDEO_PLAYBACK
-
-      - name: Rename & Upload APK
-        run: |
-          find export/ -name "*.apk" -exec mv {} funkin_vslice_mobile_arm64.apk \;
-          
-      - name: Upload Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: VSlice-Mobile-ARM64
-          path: funkin_vslice_mobile_arm64.apk
+          name: VSlice-Release
+          path: export/android/bin/app/build/outputs/apk/release/*.apk
