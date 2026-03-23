@@ -24,7 +24,7 @@ jobs:
           ndk-version: r27c
       - name: Setup Haxelib
         run: |
-          haxelib setup ~/.haxelib
+          haxelib newrepo
           haxelib install lime --quiet
           haxelib install openfl --quiet
           haxelib install flixel --quiet
