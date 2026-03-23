@@ -6,6 +6,7 @@ import sys.FileSystem;
 import sys.io.File;
 
 using StringTools;
+// Using the standard hxtools path
 using hxtools.AnsiUtil; 
 
 @:nullSafety
@@ -13,9 +14,15 @@ class Project extends HXProject
 {
   public function new()
   {
+    // --- 1. PRE-INITIALIZATION ---
+    // These must be set before super() to prevent the "Please set architecture" error
+    haxedefs.set("HXCPP_ARM64", "1"); 
+    haxedefs.set("android", "1");
+    haxedefs.set("mobile", "1");
+
     super();
 
-    // 1. Basic Metadata
+    // --- 2. METADATA ---
     meta.title = "FNF V-Slice Mobile";
     meta.version = "0.8.3";
     meta.packageName = "com.arcel.vslice.mobile";
@@ -24,22 +31,21 @@ class Project extends HXProject
     app.main = "Main";
     app.file = "Funkin";
     app.path = "export";
+    app.preloader = "funkin.ui.transition.preload.FunkinPreloader";
 
-    // 2. Critical Architecture Fix
+    // --- 3. ARCHITECTURE & SDK ---
     if (isAndroid())
     {
-      // This solves the 'Please set one of the architectures' error
-      haxedefs.set("HXCPP_ARM64", "1"); 
       config.set("android.architectures", "arm64-v8a");
-      
       config.set("android.min-sdk-version", "26");
       config.set("android.target-sdk-version", "34");
+      config.set("android.install-location", "auto");
     }
 
-    // 3. Project Folders
+    // --- 4. DIRECTORIES ---
     sources.push("source");
     
-    // Auto-include assets if the folder exists
+    // Auto-include assets
     if (FileSystem.exists("assets")) {
         assets.push(new Asset("assets"));
     }
@@ -49,6 +55,7 @@ class Project extends HXProject
 
   function setupLibraries()
   {
+    // Essential V-Slice Libraries
     lib.push({ name: "flixel", version: "5.5.0" });
     lib.push({ name: "flixel-addons" });
     lib.push({ name: "flixel-ui" });
