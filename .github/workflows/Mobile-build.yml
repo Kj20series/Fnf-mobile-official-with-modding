@@ -1,4 +1,4 @@
-name: V-Slice Mobile (Modern Build)
+name: V-Slice Mobile (Verified Mirror)
 on: [push, pull_request, workflow_dispatch]
 
 jobs:
@@ -8,7 +8,7 @@ jobs:
       - name: Checkout Source
         uses: actions/checkout@v4
         with:
-          submodules: 'recursive' # Required for V-Slice assets/submodules
+          submodules: 'recursive'
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -16,25 +16,25 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Haxe
-        uses: krdlab/setup-haxe@v1
+      - name: Setup Haxe (Reliable Mirror)
+        uses: hughsando/setup-haxe@master
         with:
-          haxe-version: 'latest'
+          haxe-version: 4.3.6 # Using the stable V-Slice target
 
-      - name: Install PC Dependencies (via HMM)
+      - name: Install PC Dependencies
         run: |
           haxelib setup ~/haxelib
           haxelib install hmm
           haxelib run hmm setup
           haxelib run hmm install
           
-          # Verified 2026 Link for WebM (Fixes audio sync & renderedFrames)
+          # Verified 2026 Link for WebM (Fixes audio sync)
           haxelib git extension-webm https://github.com/GrowtopiaFli/extension-webm
           
-          # Official Funkin Visualization library (Required for V-Slice menus)
+          # Official Funkin Visualization (Crucial for V-Slice)
           haxelib git funkin.vis https://github.com/FunkinCrew/funkVis
           
-          # Critical for Android Video support in V-Slice
+          # Stable Android Video Support
           haxelib git hxvlc https://github.com/MAJigsaw77/hxvlc.git
           
           haxelib upgrade -y
