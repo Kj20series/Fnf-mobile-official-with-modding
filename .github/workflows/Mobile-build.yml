@@ -1,4 +1,4 @@
-name: V-Slice Mobile Build
+name: V-Slice Mobile XML Build
 on: [push, pull_request, workflow_dispatch]
 
 jobs:
@@ -10,12 +10,12 @@ jobs:
         with:
           submodules: 'recursive'
 
-      - name: Setup System
+      - name: Setup Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-multilib g++-multilib libusb-1.0-0-dev libgl1-mesa-dev libglu1-mesa-dev
 
-      - name: Setup Java
+      - name: Setup Java & Haxe
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -26,20 +26,19 @@ jobs:
         with:
           haxe-version: 4.3.7
 
-      - name: Install Libraries
+      - name: Install Haxelibs
         run: |
           haxelib setup ~/haxelib
-          haxelib install lime 8.1.2
-          haxelib install openfl 9.3.3
-          haxelib install flixel 5.5.0
-          haxelib install hxp
+          haxelib install lime 8.1.2 --never
+          haxelib install openfl 9.3.3 --never
+          haxelib install flixel 5.5.0 --never
+          haxelib install hxp --never
           haxelib git funkin.vis https://github.com/FunkinCrew/funkVis --never
           haxelib git hxvlc https://github.com/MAJigsaw77/hxvlc --never
           haxelib git extension-androidtools https://github.com/MAJigsaw77/extension-androidtools --never
-          haxelib install hscript-iris
-          haxelib install polymod
-          haxelib install thx.core
-          haxelib upgrade -y
+          haxelib install hscript-iris --never
+          haxelib install polymod --never
+          haxelib install thx.core --never
 
       - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
@@ -55,11 +54,11 @@ jobs:
 
       - name: Final Build
         run: |
-          # We remove hxtools from the command to match the new script
-          haxelib run lime build project.hxp android -final -64 -D HXCPP_ARM64 -v
+          # Targeting Project.xml to avoid HXP initialization issues
+          haxelib run lime build Project.xml android -final -64 -v
 
-      - name: Upload APK
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VSlice-Mobile-Final
+          name: VSlice-Mobile-Modded
           path: export/android/bin/app/build/outputs/apk/release/*.apk
