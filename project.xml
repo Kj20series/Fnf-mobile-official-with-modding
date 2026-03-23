@@ -21,6 +21,7 @@
 	<haxelib name="extension-androidtools" />
 	<haxelib name="polymod" />
 	<haxelib name="thx.core" />
+	<haxelib name="grig.audio" />
 
 	<section if="android">
 		<config android:install-location="auto" />
