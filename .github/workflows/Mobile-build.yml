@@ -31,12 +31,12 @@ jobs:
           haxelib setup ~/haxelib
           haxelib install lime 8.1.2 --never
           haxelib install openfl 9.3.3 --never
-          # Using the Funkin' Crew's specific flixel branch for PartialSound support
+          # Using Funkin' Crew's flixel for PartialSound support
           haxelib git flixel https://github.com/FunkinCrew/flixel.git --never
           haxelib install flixel-addons --never
           haxelib install flixel-ui --never
           haxelib install hxp --never
-          # Pulling the 'dev' branch of flxanimate which contains the missing internal types
+          # Pulling 'dev' branch for missing internal animate types
           haxelib git flxanimate https://github.com/Dot-Stuff/flxanimate.git dev --never
           haxelib git funkin.vis https://github.com/FunkinCrew/funkVis.git --never
           haxelib git hxvlc https://github.com/MAJigsaw77/hxvlc.git --never
@@ -44,7 +44,8 @@ jobs:
           haxelib install hscript-iris --never
           haxelib install polymod --never
           haxelib install thx.core --never
-          haxelib git grig.audio https://gitlab.com/grig-io/grig.audio.git --never
+          # Updated grig.audio source
+          haxelib git grig.audio https://github.com/osakared/grig.audio.git --never
 
       - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
