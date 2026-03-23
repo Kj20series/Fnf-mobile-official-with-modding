@@ -1,4 +1,4 @@
-package; // FIXED: Must be lowercase
+package; // Lowercase required
 
 import hxp.*;
 import lime.tools.*;
@@ -10,7 +10,8 @@ import haxe.ds.Map;
 import haxe.xml.Printer;
 
 using StringTools;
-using tools.AnsiUtil;
+// Use hxtools for console flair
+using hxtools.AnsiUtil; 
 
 @:nullSafety
 class Project extends HXProject
@@ -23,39 +24,39 @@ class Project extends HXProject
   static final PACKAGE_NAME:String = "com.arcel.vslice.mobile";
   static final EXECUTABLE_NAME:String = "Funkin";
   static final SOURCE_DIR:String = "source";
-  static final MAIN_CLASS:String = "Main";
-  static final COMPANY:String = "The Funkin' Crew";
 
-  // --- MOBILE METADATA ---
-  static final ANDROID_MINIMUM_SDK_VERSION:Int = 26; // Android 8.0+
-  static final ANDROID_TARGET_SDK_VERSION:Int = 34; // Modern target
+  // --- MOBILE CONFIG ---
+  static final ANDROID_MIN_SDK:Int = 26;
+  static final ANDROID_TARGET_SDK:Int = 34;
 
   public function new()
   {
     super();
 
-    // App Setup
+    // Console output using hxtools
+    Sys.println("Friday Night Funkin' - V-Slice Mobile Port");
+    Sys.println("Build Version: " + VERSION);
+
+    // App Metadata Setup
     meta.title = isMobile() ? TITLE_MOBILE : TITLE;
     meta.version = VERSION;
     meta.packageName = PACKAGE_NAME;
-    meta.company = COMPANY;
     meta.buildNumber = Std.string(BUILD_NUMBER);
 
-    app.main = MAIN_CLASS;
+    app.main = "Main";
     app.file = EXECUTABLE_NAME;
     app.path = "export";
 
     sources.push(SOURCE_DIR);
 
-    // Platform Logic
     if (isAndroid())
     {
-      config.set("android.min-sdk-version", Std.string(ANDROID_MINIMUM_SDK_VERSION));
-      config.set("android.target-sdk-version", Std.string(ANDROID_TARGET_SDK_VERSION));
+      config.set("android.min-sdk-version", Std.string(ANDROID_MIN_SDK));
+      config.set("android.target-sdk-version", Std.string(ANDROID_TARGET_SDK));
       config.set("android.install-location", "auto");
     }
 
-    // Required Libraries
+    // Load the Haxelibs
     setupLibraries();
   }
 
@@ -68,6 +69,8 @@ class Project extends HXProject
     lib.push({ name: "funkin.vis" });
     lib.push({ name: "hxvlc" });
     lib.push({ name: "extension-androidtools" });
+    lib.push({ name: "hxtools" }); 
     lib.push({ name: "polymod" });
+    lib.push({ name: "thx.core" });
   }
 }
