@@ -1,4 +1,4 @@
-name: V-Slice Mobile (hxcpp Tool Fix)
+name: V-Slice Mobile (2026 Ultimate Build)
 on: [push, pull_request, workflow_dispatch]
 
 jobs:
@@ -26,14 +26,12 @@ jobs:
         with:
           haxe-version: 4.3.7
 
-      - name: Install & Compile hxcpp (The Fix)
+      - name: Install & Compile hxcpp (Tool Fix)
         run: |
           haxelib setup ~/haxelib
           haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp.git
-          # Move into the hxcpp tool directory and compile the missing .n file
           cd ~/haxelib/hxcpp/git/tools/hxcpp
           haxe compile.hxml
-          # Return to root
           cd ${{ github.workspace }}
 
       - name: Install Global Libraries
@@ -64,6 +62,14 @@ jobs:
           haxelib run lime config JAVA_HOME $JAVA_HOME
           haxelib run lime config ANDROID_SETUP true
 
+      - name: Patch extension-webm (Fix Undeclared Identifier)
+        run: |
+          # Injects unistd.h into the files failing in NDK r25+
+          WEBM_PATH=$(haxelib libpath extension-webm | tr -d '\n')
+          sed -i '1i#include <unistd.h>' ${WEBM_PATH}libwebm/mkvmuxerutil.cpp
+          sed -i '1i#include <unistd.h>' ${WEBM_PATH}libwebm/mkvwriter.cpp
+          echo "Patched extension-webm at ${WEBM_PATH}"
+
       - name: Rebuild & Build APK
         run: |
           haxelib run lime rebuild extension-webm android
@@ -74,6 +80,7 @@ jobs:
 
       - name: Rename & Upload APK
         run: |
+          # Find the APK regardless of the internal name and move it to root
           find export/release/android/bin/app/build/outputs/apk/release/ -name "*.apk" -exec mv {} funkin_vslice_mobile.apk \;
           
       - name: Upload Artifact
