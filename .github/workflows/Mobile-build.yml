@@ -25,6 +25,7 @@ jobs:
       - name: Setup Haxelib
         run: |
           haxelib newrepo
+          haxelib install hxp --quiet
           haxelib install lime --quiet
           haxelib install openfl --quiet
           haxelib install flixel --quiet
