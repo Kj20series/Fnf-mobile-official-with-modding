@@ -11,9 +11,10 @@
 	<source path="source" />
 	<assets path="assets" rename="assets" exclude="*.md|*.txt" />
 
-	<haxelib name="flixel" version="5.5.0" />
+	<haxelib name="flixel" />
 	<haxelib name="flixel-addons" />
 	<haxelib name="flixel-ui" />
+	<haxelib name="flxanimate" />
 	<haxelib name="hscript-iris" />
 	<haxelib name="funkin.vis" />
 	<haxelib name="hxvlc" />
