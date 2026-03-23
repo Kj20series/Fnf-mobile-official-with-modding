@@ -40,9 +40,9 @@ jobs:
           haxelib install openfl 9.3.3
           haxelib install flixel 5.5.0
           haxelib install hxp
+          haxelib install hxtools 1.1.6
           
-          # Fixed Git Installs (No .git suffix, added --never)
-          haxelib git hx-tools https://github.com/FunkinCrew/hx-tools --never
+          # Git Repos (Stable HTTPS URLs)
           haxelib git funkin.vis https://github.com/FunkinCrew/funkVis --never
           haxelib git extension-webm https://github.com/GrowtopiaFli/extension-webm --never
           haxelib git hxvlc https://github.com/MAJigsaw77/hxvlc --never
@@ -80,7 +80,7 @@ jobs:
           haxelib run lime rebuild extension-webm android -v7 -64
           haxelib run lime rebuild hxvlc android -v7 -64
           
-          # Target project.hxp explicitly
+          # TARGETING project.hxp
           haxelib run lime build project.hxp android -final -v7 -64 \
           -D"armeabi-v7a" -D"arm64-v8a" \
           -DGITHUB_BUILD \
