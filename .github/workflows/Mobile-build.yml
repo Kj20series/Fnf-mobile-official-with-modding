@@ -10,12 +10,12 @@ jobs:
         with:
           submodules: 'recursive'
 
-      - name: Setup Environment
+      - name: Setup System
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-multilib g++-multilib libusb-1.0-0-dev libgl1-mesa-dev libglu1-mesa-dev
 
-      - name: Setup Java & Haxe
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -34,12 +34,17 @@ jobs:
           haxelib install flixel 5.5.0
           haxelib install hxp
           haxelib install hxtools 1.1.6
+          
+          # Stable Git Repos
           haxelib git funkin.vis https://github.com/FunkinCrew/funkVis --never
           haxelib git hxvlc https://github.com/MAJigsaw77/hxvlc --never
           haxelib git extension-androidtools https://github.com/MAJigsaw77/extension-androidtools --never
+          
+          # Additional dependencies
           haxelib install hscript-iris
           haxelib install polymod
           haxelib install thx.core
+          haxelib upgrade -y
 
       - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
@@ -55,11 +60,11 @@ jobs:
 
       - name: Final Build
         run: |
-          # The -64 flag here works with the internal HXP fix
-          haxelib run lime build project.hxp android -final -64 -D HXCPP_ARM64
+          # verbose mode (-v) helps identify exactly where Exit Code 1 happens
+          haxelib run lime build project.hxp android -final -64 -D HXCPP_ARM64 -v
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: VSlice-Release
+          name: VSlice-Mobile-Arcel
           path: export/android/bin/app/build/outputs/apk/release/*.apk
