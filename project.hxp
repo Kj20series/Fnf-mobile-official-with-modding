@@ -1,4 +1,4 @@
-package; // Lowercase required
+package; 
 
 import hxp.*;
 import lime.tools.*;
@@ -10,53 +10,42 @@ import haxe.ds.Map;
 import haxe.xml.Printer;
 
 using StringTools;
-// Use hxtools for console flair
 using hxtools.AnsiUtil; 
 
 @:nullSafety
 class Project extends HXProject
 {
-  // --- METADATA ---
   static final VERSION:String = "0.8.3";
   static final BUILD_NUMBER:Int = 77;
   static final TITLE:String = "Friday Night Funkin' V-Slice";
-  static final TITLE_MOBILE:String = "FNF V-Slice";
   static final PACKAGE_NAME:String = "com.arcel.vslice.mobile";
-  static final EXECUTABLE_NAME:String = "Funkin";
-  static final SOURCE_DIR:String = "source";
-
-  // --- MOBILE CONFIG ---
-  static final ANDROID_MIN_SDK:Int = 26;
-  static final ANDROID_TARGET_SDK:Int = 34;
 
   public function new()
   {
     super();
 
-    // Console output using hxtools
-    Sys.println("Friday Night Funkin' - V-Slice Mobile Port");
-    Sys.println("Build Version: " + VERSION);
+    Sys.println("Building FNF V-Slice Mobile (ARM64 Optimized)");
 
-    // App Metadata Setup
-    meta.title = isMobile() ? TITLE_MOBILE : TITLE;
+    meta.title = isMobile() ? "FNF V-Slice" : TITLE;
     meta.version = VERSION;
     meta.packageName = PACKAGE_NAME;
     meta.buildNumber = Std.string(BUILD_NUMBER);
 
     app.main = "Main";
-    app.file = EXECUTABLE_NAME;
+    app.file = "Funkin";
     app.path = "export";
 
-    sources.push(SOURCE_DIR);
+    sources.push("source");
 
     if (isAndroid())
     {
-      config.set("android.min-sdk-version", Std.string(ANDROID_MIN_SDK));
-      config.set("android.target-sdk-version", Std.string(ANDROID_TARGET_SDK));
-      config.set("android.install-location", "auto");
+      config.set("android.min-sdk-version", "26");
+      config.set("android.target-sdk-version", "34");
+      
+      // Force arm64-v8a architecture in the build config
+      config.set("android.architectures", "arm64-v8a");
     }
 
-    // Load the Haxelibs
     setupLibraries();
   }
 
