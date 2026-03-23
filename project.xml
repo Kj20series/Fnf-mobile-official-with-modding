@@ -15,6 +15,7 @@
 	<haxelib name="flixel-addons" />
 	<haxelib name="flixel-ui" />
 	<haxelib name="flxanimate" />
+	<haxelib name="flxpartialsound" />
 	<haxelib name="hscript-iris" />
 	<haxelib name="funkin.vis" />
 	<haxelib name="hxvlc" />
