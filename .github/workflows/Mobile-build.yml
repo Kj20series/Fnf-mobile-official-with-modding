@@ -1,4 +1,4 @@
-name: V-Slice Mobile (Global & Fixed Path)
+name: V-Slice Mobile (2026 Bulletproof Build)
 on: [push, pull_request, workflow_dispatch]
 
 jobs:
@@ -8,7 +8,7 @@ jobs:
       - name: Checkout Source
         uses: actions/checkout@v4
         with:
-          submodules: 'recursive'
+          submodules: 'recursive' # Clones the funkin.assets PC folder
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -16,29 +16,47 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install Haxe 4.3.7
+      - name: Install Neko & Haxe (Manual Path Fix)
         run: |
+          # 1. Install Neko first (Haxelib requires this to run)
+          sudo apt-get update && sudo apt-get install -y neko
+          
+          # 2. Download and Extract Haxe 4.3.7
           wget https://github.com/HaxeFoundation/haxe/releases/download/4.3.7/haxe-4.3.7-linux64.tar.gz
-          mkdir -p ~/haxe && tar -xf haxe-4.3.7-linux64.tar.gz -C ~/haxe
-          # This line is the fix: it tells GitHub where haxe and haxelib are
-          echo "$HOME/haxe/haxe-4.3.7" >> $GITHUB_PATH
-
+          mkdir -p ~/haxe-dist
+          tar -xf haxe-4.3.7-linux64.tar.gz -C ~/haxe-dist
+          
+          # 3. Find the exact folder and set paths (Auto-Detection)
+          HAXE_DIR=$(find ~/haxe-dist -maxdepth 1 -type d -name "haxe-*" | head -n 1)
+          echo "Haxe found at: $HAXE_DIR"
+          chmod +x $HAXE_DIR/haxe $HAXE_DIR/haxelib
+          echo "$HAXE_DIR" >> $GITHUB_PATH
+          echo "HAXEPATH=$HAXE_DIR" >> $GITHUB_ENV
+          
       - name: Install Global Libraries
         run: |
-          # Use the full path for the first setup to be safe
-          $HOME/haxe/haxe-4.3.7/haxelib setup ~/haxelib
+          # Use absolute path for the very first setup
+          $HAXEPATH/haxelib setup ~/haxelib
+          
+          # Core Frameworks (Stable Versions for V-Slice)
           haxelib install lime 8.1.2
           haxelib install openfl 9.3.3
           haxelib install flixel 5.5.0
           haxelib run lime setup flixel
           haxelib run lime setup
+          
+          # V-Slice / PC Dependencies
           haxelib install flixel-addons
           haxelib install flixel-ui
+          haxelib install flixel-tools
           haxelib install hscript-iris
           haxelib git funkin.vis https://github.com/FunkinCrew/funkVis.git
+          
+          # Verified Mobile Forks (GrowtopiaFli = renderedFrames Fix)
           haxelib git extension-webm https://github.com/GrowtopiaFli/extension-webm
           haxelib git hxvlc https://github.com/MAJigsaw77/hxvlc.git
           haxelib git extension-androidtools https://github.com/MAJigsaw77/extension-androidtools.git
+          
           haxelib upgrade -y
 
       - name: Setup Android NDK (r25c)
@@ -46,26 +64,33 @@ jobs:
         with:
           ndk-version: r25c
 
-      - name: Configure Lime
+      - name: Configure Lime for Android
         run: |
           haxelib run lime config ANDROID_SDK $ANDROID_HOME
           haxelib run lime config ANDROID_NDK_ROOT $ANDROID_NDK_HOME
           haxelib run lime config JAVA_HOME $JAVA_HOME
           haxelib run lime config ANDROID_SETUP true
 
-      - name: Rebuild & Build APK
+      - name: Rebuild Extensions
         run: |
+          # Compiles the C++ code specifically for Android
           haxelib run lime rebuild extension-webm android
           haxelib run lime rebuild hxvlc android
-          # THE BUILD PART: This creates the APK
+
+      - name: Build Final APK
+        run: |
+          # Removed the colon (:) from the title to prevent artifact errors
           haxelib run lime build android -final \
-          -DAPP_TITLE="Friday Night Funkin': Vslice mobile" \
+          -DAPP_TITLE="Friday Night Funkin Vslice mobile" \
           -DAPP_PACKAGE="com.Funkin.Mobile"
 
-      - name: Upload Finished APK
+      - name: Rename & Upload APK
+        run: |
+          # Finds the APK and renames it to something simple for the artifact
+          mv export/release/android/bin/app/build/outputs/apk/release/*.apk funkin_vslice_mobile.apk
+          
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VSlice-Mobile-Global
-          # This is the path where the APK is generated
-          path: export/release/android/bin/app/build/outputs/apk/release/*.apk
-  
+          name: VSlice-Mobile-Final
+          path: funkin_vslice_mobile.apk
