@@ -1,70 +1,53 @@
-package; 
+package;
 
 import hxp.*;
 import lime.tools.*;
 import sys.FileSystem;
-import sys.io.File;
 
-using StringTools;
-// Using the standard hxtools path
-using hxtools.AnsiUtil; 
+class Project extends HXProject {
+    public function new() {
+        // Force architecture before anything else
+        haxedefs.set("HXCPP_ARM64", "1");
+        
+        super();
 
-@:nullSafety
-class Project extends HXProject
-{
-  public function new()
-  {
-    // --- 1. PRE-INITIALIZATION ---
-    // These must be set before super() to prevent the "Please set architecture" error
-    haxedefs.set("HXCPP_ARM64", "1"); 
-    haxedefs.set("android", "1");
-    haxedefs.set("mobile", "1");
+        // Metadata
+        meta.title = "FNF V-Slice Mobile";
+        meta.version = "0.8.3";
+        meta.packageName = "com.arcel.vslice.mobile";
+        meta.company = "The Funkin' Crew";
 
-    super();
+        // App Config
+        app.main = "Main";
+        app.file = "Funkin";
+        app.path = "export";
 
-    // --- 2. METADATA ---
-    meta.title = "FNF V-Slice Mobile";
-    meta.version = "0.8.3";
-    meta.packageName = "com.arcel.vslice.mobile";
-    meta.company = "The Funkin' Crew";
+        // Source and Assets
+        sources.push("source");
+        if (FileSystem.exists("assets")) {
+            assets.push(new Asset("assets"));
+        }
 
-    app.main = "Main";
-    app.file = "Funkin";
-    app.path = "export";
-    app.preloader = "funkin.ui.transition.preload.FunkinPreloader";
+        // Android Specifics
+        if (isAndroid()) {
+            config.set("android.architectures", "arm64-v8a");
+            config.set("android.min-sdk-version", "26");
+            config.set("android.target-sdk-version", "34");
+        }
 
-    // --- 3. ARCHITECTURE & SDK ---
-    if (isAndroid())
-    {
-      config.set("android.architectures", "arm64-v8a");
-      config.set("android.min-sdk-version", "26");
-      config.set("android.target-sdk-version", "34");
-      config.set("android.install-location", "auto");
+        // Libraries
+        setupLibraries();
     }
 
-    // --- 4. DIRECTORIES ---
-    sources.push("source");
-    
-    // Auto-include assets
-    if (FileSystem.exists("assets")) {
-        assets.push(new Asset("assets"));
+    function setupLibraries() {
+        lib.push({ name: "flixel", version: "5.5.0" });
+        lib.push({ name: "flixel-addons" });
+        lib.push({ name: "flixel-ui" });
+        lib.push({ name: "hscript-iris" });
+        lib.push({ name: "funkin.vis" });
+        lib.push({ name: "hxvlc" });
+        lib.push({ name: "extension-androidtools" });
+        lib.push({ name: "polymod" });
+        lib.push({ name: "thx.core" });
     }
-
-    setupLibraries();
-  }
-
-  function setupLibraries()
-  {
-    // Essential V-Slice Libraries
-    lib.push({ name: "flixel", version: "5.5.0" });
-    lib.push({ name: "flixel-addons" });
-    lib.push({ name: "flixel-ui" });
-    lib.push({ name: "hscript-iris" });
-    lib.push({ name: "funkin.vis" });
-    lib.push({ name: "hxvlc" });
-    lib.push({ name: "extension-androidtools" });
-    lib.push({ name: "hxtools" }); 
-    lib.push({ name: "polymod" });
-    lib.push({ name: "thx.core" });
-  }
 }
