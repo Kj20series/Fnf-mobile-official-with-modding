@@ -64,7 +64,6 @@ jobs:
 
       - name: Patch extension-webm (Improved Search)
         run: |
-          # This finds the files wherever they are in the extension-webm folder
           EXT_PATH=$(haxelib libpath extension-webm | tr -d '\n')
           find "$EXT_PATH" -name "mkvmuxerutil.cpp" -exec sed -i '1i#include <unistd.h>' {} +
           find "$EXT_PATH" -name "mkvwriter.cpp" -exec sed -i '1i#include <unistd.h>' {} +
@@ -72,8 +71,13 @@ jobs:
 
       - name: Rebuild & Build APK
         run: |
-          haxelib run lime rebuild extension-webm android
-          haxelib run lime rebuild hxvlc android
+          # The Fix: Adding -v7 and -64 ensures hxcpp finds a target
+          haxelib run lime rebuild extension-webm android -v7
+          haxelib run lime rebuild extension-webm android -64
+          haxelib run lime rebuild hxvlc android -v7
+          haxelib run lime rebuild hxvlc android -64
+          
+          # Final APK Build
           haxelib run lime build android -final \
           -DAPP_TITLE="Friday Night Funkin Vslice mobile" \
           -DAPP_PACKAGE="com.Funkin.Mobile"
