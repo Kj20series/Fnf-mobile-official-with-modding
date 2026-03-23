@@ -29,37 +29,32 @@ jobs:
       - name: Install & Compile hxcpp (Tool Fix)
         run: |
           haxelib setup ~/haxelib
-          haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp.git
+          haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp --never
           cd ~/haxelib/hxcpp/git/tools/hxcpp
           haxe compile.hxml
           cd ${{ github.workspace }}
 
       - name: Install Global Libraries
         run: |
-          # Core V-Slice Requirements
           haxelib install lime 8.1.2
           haxelib install openfl 9.3.3
           haxelib install flixel 5.5.0
           haxelib install hxp
-          haxelib git hx-tools https://github.com/FunkinCrew/hx-tools.git
           
-          # Setup Lime/Flixel
+          # Fixed Git Installs (No .git suffix, added --never)
+          haxelib git hx-tools https://github.com/FunkinCrew/hx-tools --never
+          haxelib git funkin.vis https://github.com/FunkinCrew/funkVis --never
+          haxelib git extension-webm https://github.com/GrowtopiaFli/extension-webm --never
+          haxelib git hxvlc https://github.com/MAJigsaw77/hxvlc --never
+          haxelib git extension-androidtools https://github.com/MAJigsaw77/extension-androidtools --never
+          
           haxelib run lime setup flixel
           haxelib run lime setup
-          
-          # Additional Libraries
           haxelib install flixel-addons
           haxelib install flixel-ui
           haxelib install hscript-iris
           haxelib install polymod
           haxelib install thx.core
-          
-          # Git Repos
-          haxelib git funkin.vis https://github.com/FunkinCrew/funkVis.git
-          haxelib git extension-webm https://github.com/GrowtopiaFli/extension-webm
-          haxelib git hxvlc https://github.com/MAJigsaw77/hxvlc.git
-          haxelib git extension-androidtools https://github.com/MAJigsaw77/extension-androidtools.git
-          
           haxelib upgrade -y
 
       - name: Setup Android NDK (r25c)
@@ -82,13 +77,10 @@ jobs:
 
       - name: Rebuild & Build APK
         run: |
-          # Rebuild extensions
           haxelib run lime rebuild extension-webm android -v7 -64
           haxelib run lime rebuild hxvlc android -v7 -64
           
-          # BUILD USING PROJECT.HXP
-          # We pass -64 and -v7 for max compatibility. 
-          # We include -DGITHUB_BUILD because your HXP checks for it.
+          # Target project.hxp explicitly
           haxelib run lime build project.hxp android -final -v7 -64 \
           -D"armeabi-v7a" -D"arm64-v8a" \
           -DGITHUB_BUILD \
@@ -97,9 +89,13 @@ jobs:
 
       - name: Rename & Upload APK
         run: |
-          # V-Slice build path check
           find export/ -name "*.apk" -exec mv {} funkin_vslice_mobile.apk \;
           
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VSlice-Mobile-Final
+          path: funkin_vslice_mobile.apk
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
