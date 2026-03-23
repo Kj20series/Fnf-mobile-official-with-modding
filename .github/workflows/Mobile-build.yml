@@ -1,4 +1,4 @@
-name: V-Slice Mobile (Final Fix)
+name: V-Slice Mobile (hxcpp Tool Fix)
 on: [push, pull_request, workflow_dispatch]
 
 jobs:
@@ -10,10 +10,9 @@ jobs:
         with:
           submodules: 'recursive'
 
-      - name: Install System Dependencies (Fixes bits/libc error)
+      - name: Install System Dependencies
         run: |
           sudo apt-get update
-          # Fixed the libusb typo and cleaned up the list
           sudo apt-get install -y gcc-multilib g++-multilib libusb-1.0-0-dev libgl1-mesa-dev libglu1-mesa-dev
 
       - name: Setup Java
@@ -22,14 +21,23 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Haxe (Official)
+      - name: Setup Haxe
         uses: FunkinCrew/ci-haxe@v3
         with:
           haxe-version: 4.3.7
 
-      - name: Install Global Libraries
+      - name: Install & Compile hxcpp (The Fix)
         run: |
           haxelib setup ~/haxelib
+          haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp.git
+          # Move into the hxcpp tool directory and compile the missing .n file
+          cd ~/haxelib/hxcpp/git/tools/hxcpp
+          haxe compile.hxml
+          # Return to root
+          cd ${{ github.workspace }}
+
+      - name: Install Global Libraries
+        run: |
           haxelib install lime 8.1.2
           haxelib install openfl 9.3.3
           haxelib install flixel 5.5.0
@@ -39,15 +47,9 @@ jobs:
           haxelib install flixel-ui
           haxelib install hscript-iris
           haxelib git funkin.vis https://github.com/FunkinCrew/funkVis.git
-          
-          # Verified Mobile Sync & Stability Libs
           haxelib git extension-webm https://github.com/GrowtopiaFli/extension-webm
           haxelib git hxvlc https://github.com/MAJigsaw77/hxvlc.git
           haxelib git extension-androidtools https://github.com/MAJigsaw77/extension-androidtools.git
-          
-          # Fix for NDK r25 stability
-          haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp.git
-          
           haxelib upgrade -y
 
       - name: Setup Android NDK (r25c)
