@@ -32,6 +32,8 @@ jobs:
           haxelib install lime 8.1.2 --never
           haxelib install openfl 9.3.3 --never
           haxelib install flixel 5.5.0 --never
+          haxelib install flixel-addons --never
+          haxelib install flixel-ui --never
           haxelib install hxp --never
           haxelib git funkin.vis https://github.com/FunkinCrew/funkVis --never
           haxelib git hxvlc https://github.com/MAJigsaw77/hxvlc --never
@@ -71,4 +73,3 @@ jobs:
         with:
           name: VSlice-Mobile-Modded
           path: export/android/bin/app/build/outputs/apk/release/*.apk
-          
