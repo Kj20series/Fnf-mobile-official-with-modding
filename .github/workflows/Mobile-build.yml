@@ -1,4 +1,4 @@
-name: V-Slice Mobile (Verified Mirror)
+name: V-Slice Mobile (Global Libs Build)
 on: [push, pull_request, workflow_dispatch]
 
 jobs:
@@ -8,7 +8,7 @@ jobs:
       - name: Checkout Source
         uses: actions/checkout@v4
         with:
-          submodules: 'recursive'
+          submodules: 'recursive' # Keeps the PC asset structure
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -16,30 +16,37 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Haxe (Reliable Mirror)
-        uses: hughsando/setup-haxe@master
-        with:
-          haxe-version: 4.3.6 # Using the stable V-Slice target
+      - name: Install Haxe 4.3.7 (Manual Stable Download)
+        run: |
+          wget https://github.com/HaxeFoundation/haxe/releases/download/4.3.7/haxe-4.3.7-linux64.tar.gz
+          mkdir -p ~/haxe && tar -xf haxe-4.3.7-linux64.tar.gz -C ~/haxe
+          echo "$HOME/haxe/haxe-4.3.7" >> $GITHUB_PATH
+          export HAXEPATH=$HOME/haxe/haxe-4.3.7
 
-      - name: Install PC Dependencies
+      - name: Install Global Libraries (The PC Way)
         run: |
           haxelib setup ~/haxelib
-          haxelib install hmm
-          haxelib run hmm setup
-          haxelib run hmm install
+          # Core Framework
+          haxelib install lime 8.1.2
+          haxelib install openfl 9.3.3
+          haxelib install flixel 5.5.0
+          haxelib run lime setup flixel
+          haxelib run lime setup
           
-          # Verified 2026 Link for WebM (Fixes audio sync)
+          # Essential PC/V-Slice Global Libs
+          haxelib install flixel-addons
+          haxelib install flixel-ui
+          haxelib install hscript-iris
+          haxelib git funkin.vis https://github.com/FunkinCrew/funkVis.git
+          
+          # Verified Mobile Sync & Stability Libs
           haxelib git extension-webm https://github.com/GrowtopiaFli/extension-webm
-          
-          # Official Funkin Visualization (Crucial for V-Slice)
-          haxelib git funkin.vis https://github.com/FunkinCrew/funkVis
-          
-          # Stable Android Video Support
           haxelib git hxvlc https://github.com/MAJigsaw77/hxvlc.git
+          haxelib git extension-androidtools https://github.com/MAJigsaw77/extension-androidtools.git
           
           haxelib upgrade -y
 
-      - name: Setup Android NDK
+      - name: Setup Android NDK (r25c)
         uses: nttld/setup-ndk@v1
         with:
           ndk-version: r25c
@@ -51,13 +58,10 @@ jobs:
           haxelib run lime config JAVA_HOME $JAVA_HOME
           haxelib run lime config ANDROID_SETUP true
 
-      - name: Rebuild Extensions
+      - name: Global Rebuild & Compile
         run: |
           haxelib run lime rebuild extension-webm android
           haxelib run lime rebuild hxvlc android
-
-      - name: Compile APK
-        run: |
           haxelib run lime build android -final \
           -DAPP_TITLE="Friday Night Funkin': Vslice mobile" \
           -DAPP_PACKAGE="com.Funkin.Mobile"
@@ -65,5 +69,5 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VSlice-Mobile-Latest
+          name: VSlice-Mobile-Global
           path: export/release/android/bin/app/build/outputs/apk/release/*.apk
