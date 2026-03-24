@@ -1,0 +1,614 @@
+package;
+
+// I don't think we can import `funkin` classes here. Macros? Recursion? IDK.
+import hxp.*;
+import lime.tools.*;
+import sys.FileSystem;
+import sys.io.File;
+import haxe.io.Bytes;
+import haxe.io.Path;
+import haxe.ds.Map;
+import haxe.xml.Printer;
+
+using StringTools;
+using tools.AnsiUtil;
+
+/**
+ * This HXP performs the functions of a Lime `project.xml` file,
+ * but it's written in Haxe rather than XML!
+ *
+ * This makes it far easier to organize, reuse, and refactor,
+ * and improves management of feature flag logic.
+ */
+@:nullSafety
+class Project extends HXProject
+{
+  //
+  // METADATA
+  //
+
+  /**
+   * The game's version number, as a Semantic Versioning string with no prefix.
+   * REMEMBER TO CHANGE THIS WHEN THE GAME UPDATES!
+   * You only have to change it here, the rest of the game will query this value.
+   */
+  static final VERSION:String = "0.8.3";
+
+  /**
+   * The build's number and version code.
+   * Used when publishing the game to mobile app stores. Should increment with each patch.
+   */
+  static final BUILD_NUMBER:Int = 77;
+
+  /**
+   * The game's name. Used as the default window title.
+   */
+  static final TITLE:String = "Friday Night Funkin'";
+
+  /**
+   * The game's name on mobile. Used as the title for the game on the home screen.
+   */
+  static final TITLE_MOBILE:String = "FNF";
+
+  /**
+   * A package name used for identifying the app on various app stores.
+   */
+  static final PACKAGE_NAME:String = "me.funkin.fnf";
+
+  /**
+   * The name of the generated executable file.
+   * For example, `"Funkin"` will create a file called `Funkin.exe`.
+   */
+  static final EXECUTABLE_NAME:String = "Funkin";
+
+  /**
+   * The relative location of the source code.
+   */
+  static final SOURCE_DIR:String = "source";
+
+  /**
+   * The relative location of the templates folder.
+   */
+  static final TEMPLATES_DIR:String = "templates";
+
+  /**
+   * The fully qualified class path for the game's preloader.
+   * Particularly important on HTML5 but we use it on all platforms.
+   */
+  static final PRELOADER:String = "funkin.ui.transition.preload.FunkinPreloader";
+
+  /**
+   * The fully qualified class path for the entry point class to execute when launching the game.
+   * It's where `public static function main():Void` goes.
+   */
+  static final MAIN_CLASS:String = "Main";
+
+  /**
+   * The company name for the game.
+   * This appears in metadata in places I think.
+   */
+  static final COMPANY:String = "The Funkin' Crew";
+
+  /**
+   * The app's localization languages.
+   */
+  static final LANGUAGES:Array<String> = ["en"];
+
+  /**
+   * The contents of the user's environment config.
+   * Read from the local `.env` file. Used for storing API keys.
+   */
+  static var envConfig:Null<Map<String, Dynamic>> = null;
+
+  //
+  // MOBILE METADATA
+  //
+
+  /**
+   * The app's minimal Android SDK version.
+   */
+  static final ANDROID_MINIMUM_SDK_VERSION:Int = 28;
+
+  /**
+   * The app's target Android SDK version.
+   */
+  static final ANDROID_TARGET_SDK_VERSION:Int = 35;
+
+  static final ANDROID_EXTENSIONS:Array<String> = [
+    "funkin.extensions.CallbackUtil",
+    "funkin.extensions.FNFCExtension",
+    "funkin.extensions.AudioSession"
+  ];
+
+  /**
+   * The team ID to use for the iOS app. Configured in XCode.
+   */
+  static var IOS_TEAM_ID:String = "Z7G7AVNGSH";
+
+  /**
+   * A list of asset file globs to exclude from ASTC compression when creating optimized mobile builds.
+   */
+  static var astcExcludes:Array<String> = [];
+
+  //
+  // BUILD SCRIPTS
+  //
+
+  /**
+   * Path to the Haxe script run before building the game.
+   */
+  static final PREBUILD_HX:String = "source/Prebuild.hx";
+
+  /**
+   * Path to the Haxe script run after building the game.
+   */
+  static final POSTBUILD_HX:String = "source/Postbuild.hx";
+
+  //
+  // ASSET FILTERS
+  //
+
+  /**
+   * Asset path globs to always exclude from asset libraries.
+   */
+  static final EXCLUDE_ASSETS:Array<String> = [".*", "cvs", "thumbs.db", "desktop.ini", "*.hash", "*.md"];
+
+  /**
+   * Asset path globs to exclude on web platforms.
+   */
+  static final EXCLUDE_ASSETS_WEB:Array<String> = ["*.ogg"];
+
+  /**
+   * Asset path globs to exclude on native platforms.
+   */
+  static final EXCLUDE_ASSETS_NATIVE:Array<String> = ["*.mp3"];
+
+  /**
+   * Asset path globs to exclude on platforms with `CENSOR_EXPLETIVES` enabled.
+   */
+  static final EXCLUDE_ASSETS_CENSORED:Array<String> = ["stressCutscene.mp4", "stressPicoCutscene.mp4", "darnellCutscene.mp4"];
+
+  /**
+   * Asset path globs to exclude on platforms with `CENSOR_EXPLETIVES` disabled.
+   */
+  static final EXCLUDE_ASSETS_UNCENSORED:Array<String> = [
+    "stressCutscene-censored.mp4",
+    "stressPicoCutscene-censored.mp4",
+    "darnellCutscene-censored.mp4"
+  ];
+
+  //
+  // ASSET EMBEDDING
+  //
+
+  /**
+   * The songs whose audio files should be embedded inside the executable.
+   */
+  static final EMBED_SONGS_AUDIO:Array<String> = ["spaghetti"];
+
+  //
+  // BUILD FLAGS
+  // Inverse build flags are automatically populated.
+  //
+
+  /**
+   * `-DCENSOR_EXPLETIVES`
+   * If enabled, specifically disable "sexual explitives" in the game.
+   * This will forcibly censor these words (even if naughtyness is enabled), while leaving other swears.
+   *
+   * NOTE: This is needed because the Android platform specifically hates "fuck" and "cunt",
+   * but is fine with other naughtyness such as "cock", "asshole", implied sex, cigarettes, etc.
+   */
+  static final CENSOR_EXPLETIVES:FeatureFlag = "CENSOR_EXPLETIVES";
+
+  /**
+   * `-DEMBED_ASSETS`
+   * Whether to embed all asset libraries into the executable.
+   * Enabled on web, usually disabled on desktop.
+   */
+  static final EMBED_ASSETS:FeatureFlag = "EMBED_ASSETS";
+
+  /**
+   * `-DEXCLUDE_ARMV7`
+   * If this flag is enabled, armv7 won't be compiled when building android.
+   */
+  static final EXCLUDE_ARMV7:FeatureFlag = "EXCLUDE_ARMV7";
+
+  /**
+   * `-DFORCE_BLEND_SHADER`
+   * If this flag is enabled, the game will force the use of shaders to render
+   * certain blend modes, even if the device supports the needed OpenGL extensions.
+   */
+  static final FORCE_BLEND_SHADER:FeatureFlag = "FORCE_BLEND_SHADER";
+
+  /**
+   * `-DGITHUB_BUILD`
+   * If this flag is enabled, the game will use the configuration used by GitHub Actions
+   * to generate playtest builds to be pushed to the launcher.
+   *
+   * This is generally used to forcibly enable debugging features,
+   * even when the game is built in release mode for performance.
+   */
+  static final GITHUB_BUILD:FeatureFlag = "GITHUB_BUILD";
+
+  /**
+   * `-DHARDCODED_CREDITS`
+   * If this flag is enabled, the credits will be parsed and encoded in the game at compile time,
+   * rather than read from JSON data at runtime.
+   */
+  static final HARDCODED_CREDITS:FeatureFlag = "HARDCODED_CREDITS";
+
+  /**
+   * `-DPRELOAD_ALL`
+   * Whether to preload all asset libraries.
+   * Disabled on web, enabled on desktop.
+   */
+  static final PRELOAD_ALL:FeatureFlag = "PRELOAD_ALL";
+
+  /**
+   * `-DREDIRECT_ASSETS_FOLDER`
+   * If this flag is enabled, the game will redirect the `assets` folder from the `export` folder
+   * to the `assets` folder at the root of the workspace.
+   * This is useful for ensuring hot reloaded changes don't get lost when rebuilding the game.
+   */
+  static final REDIRECT_ASSETS_FOLDER:FeatureFlag = "REDIRECT_ASSETS_FOLDER";
+
+  /**
+   * `-DTESTING_ADS`
+   * If this flag is enabled, mobile advertisements will use testing mode.
+   */
+  static final TESTING_ADS:FeatureFlag = "TESTING_ADS";
+
+  /**
+   * `-DUNLOCK_EVERYTHING`
+   * If this flag is enabled, the game will assume all songs have been beaten and all content is available.
+   */
+  static final UNLOCK_EVERYTHING:FeatureFlag = "UNLOCK_EVERYTHING";
+
+  //
+  // FEATURE FLAGS
+  // Inverse build flags are automatically populated.
+  //
+
+  /**
+   * `-DFEATURE_COMPRESSED_TEXTURES`
+   * If this flag is enabled, ASTC compressed textures will be used over uncompressed PNGs.
+   * Compressed ASTC textures provide lower memory usage but at the cost of a slightly higher files size & more GPU usage.
+   * ASTC textures are GPU Rendered so they have a few cons:
+   * - Pixel Data of bitmaps cannot be read nor edited directly.
+   * - Some filters specifically the ones in openfl.filters package won't work properly because they directly modify the bitmap pixels.
+   * - ASync loading for GPU Compressed Textures doesn't work due to OpenGL being single-threaded. (Looking online there seem to be some workarounds but it's pretty complicated...).
+   * One thing to note is that ASTC textures aren't available on all platforms:
+   * - For iOS, it's available starting from phones with A8 chips, so anything from iPhone 6 and beyond has it.
+   * - For Android, it's sorta mixed, but mostly any mid range phone that came after 2017 does support ASTC.
+   * - For desktop, it appears to be only supported on Intergrated Graphics from our testing.
+   */
+  static final FEATURE_COMPRESSED_TEXTURES:FeatureFlag = "FEATURE_COMPRESSED_TEXTURES";
+
+  /**
+   * `-DFEATURE_DEBUG_FUNCTIONS`
+   * If this flag is enabled, the game will have all playtester-only debugging functionality enabled.
+   * This includes debug hotkeys like time travel in the Play State.
+   * By default, enabled on debug builds or playtester builds and disabled on release builds.
+   */
+  static final FEATURE_DEBUG_FUNCTIONS:FeatureFlag = "FEATURE_DEBUG_FUNCTIONS";
+
+  /**
+   * `-DFEATURE_RESULTS_DEBUG`
+   * If this flag is enabled, a debug menu for Results screen will be accessible from the debug menu.
+   */
+  static final FEATURE_RESULTS_DEBUG:FeatureFlag = "FEATURE_RESULTS_DEBUG";
+
+  /**
+   * `-DFEATURE_DEBUG_TRACY`
+   * If this flag is enabled, the game will have the necessary hooks for the Tracy profiler.
+   * Only enable this if you're using the correct fork of Haxe to support this.
+   * @see https://github.com/HaxeFoundation/hxcpp/pull/1153
+   */
+  static final FEATURE_DEBUG_TRACY:FeatureFlag = "FEATURE_DEBUG_TRACY";
+
+  /**
+   * `-DFEATURE_DISCORD_RPC`
+   * If this flag is enabled, the game will enable the Discord Remote Procedure Call library.
+   * This is used to provide Discord Rich Presence support.
+   */
+  static final FEATURE_DISCORD_RPC:FeatureFlag = "FEATURE_DISCORD_RPC";
+
+  /**
+   * `-DFEATURE_LOST_FOCUS_VOLUME`
+   * If this flag is enabled, the game will reduce application volume, when lost focus.
+   * Allowed only on Desktop targets.
+   */
+  static final FEATURE_LOST_FOCUS_VOLUME:FeatureFlag = "FEATURE_LOST_FOCUS_VOLUME";
+
+  /**
+   * `-DFEATURE_FILE_DROP`
+   * If this flag is enabled, the game will support dragging and dropping files onto it for various features.
+   * Disabled on MacOS.
+   */
+  static final FEATURE_FILE_DROP:FeatureFlag = "FEATURE_FILE_DROP";
+
+  /**
+   * `-DFEATURE_FUNKVIS`
+   * If this flag is enabled, the game will enable the Funkin Visualizer library.
+   * This is used to provide audio visualization like Nene's speaker.
+   * Disabling this will make some waveforms inactive.
+   */
+  static final FEATURE_FUNKVIS:FeatureFlag = "FEATURE_FUNKVIS";
+
+  /**
+   * `-DFEATURE_GHOST_TAPPING`
+   * If this flag is enabled, misses will not be counted when it is not the player's turn.
+   * Misses are still counted when the player has notes to hit.
+   */
+  static final FEATURE_GHOST_TAPPING:FeatureFlag = "FEATURE_GHOST_TAPPING";
+
+  /**
+   * `-DFEATURE_HAPTICS`
+   * If this flag is enabled, the game provide haptic feedback vibrations.
+   * Works for mobile targets (Android and iOS).
+   */
+  static final FEATURE_HAPTICS:FeatureFlag = "FEATURE_HAPTICS";
+
+  /**
+   * `-DFEATURE_LAG_ADJUSTMENT`
+   * If this flag is enabled, the input offsets menu will be available to configure your audio and visual offsets.
+   */
+  static final FEATURE_LAG_ADJUSTMENT:FeatureFlag = "FEATURE_LAG_ADJUSTMENT";
+
+  /**
+   * `-DFEATURE_LOG_TRACE`
+   * If this flag is enabled, the game will print debug traces to the console.
+   * Disable to improve performance a bunch.
+   */
+  static final FEATURE_LOG_TRACE:FeatureFlag = "FEATURE_LOG_TRACE";
+
+  /**
+   * `-DFEATURE_DEBUG_FILE_LOGGING`
+   * If this flag is enabled, the game will print debug traces to a log file near the game's executable.
+   * Disable to improve performance a bunch.
+   */
+  static final FEATURE_DEBUG_FILE_LOGGING:FeatureFlag = "FEATURE_DEBUG_FILE_LOGGING";
+
+  /**
+   * `-DFEATURE_MOBILE_ADVERTISEMENTS`
+   * If this flag is enabled, Google AdMob will be enabled.
+   * Banner and interstitial ads will sometimes appear.
+   */
+  static final FEATURE_MOBILE_ADVERTISEMENTS:FeatureFlag = "FEATURE_MOBILE_ADVERTISEMENTS";
+
+  /**
+   * `-DFEATURE_MOBILE_IAP`
+   * If this flag is enabled, in-app purchases will be enabled.
+   * This includes the in-app purchase to disable mobile advertisements.
+   */
+  static final FEATURE_MOBILE_IAP:FeatureFlag = "FEATURE_MOBILE_IAP";
+
+  /**
+   * `-DFEATURE_MOBILE_IAR`
+   * If this feature flag is enabled, the user may sometimes be prompted to review the app on their respective store.
+   */
+  static final FEATURE_MOBILE_IAR:FeatureFlag = "FEATURE_MOBILE_IAR";
+
+  /**
+   * `-DFEATURE_MOBILE_WEBVIEW`
+   * If this feature flag is enabled, the user may sometimes be prompted to review the app on their respective store.
+   */
+  static final FEATURE_MOBILE_WEBVIEW:FeatureFlag = "FEATURE_MOBILE_WEBVIEW";
+
+  /**
+   * `-DFEATURE_NAUGHTYNESS`
+   * If this feature flag is enabled, naughtyness will be a toggleable option in the Options Menu.
+   * If disabled, the option will be hidden and the game will always be censored.
+   */
+  static final FEATURE_NAUGHTYNESS:FeatureFlag = "FEATURE_NAUGHTYNESS";
+
+  /**
+   * `-DFEATURE_NEWGROUNDS`
+   * If this flag is enabled, the game will enable the Newgrounds library.
+   * This is used to provide Medal and Leaderboard support.
+   */
+  static final FEATURE_NEWGROUNDS:FeatureFlag = "FEATURE_NEWGROUNDS";
+
+  /**
+   * `-DFEATURE_NEWGROUNDS_AUTOLOGIN`
+   * If this flag is enabled, the game will attempt to automatically login to Newgrounds on startup.
+   */
+  static final FEATURE_NEWGROUNDS_AUTOLOGIN:FeatureFlag = "FEATURE_NEWGROUNDS_AUTOLOGIN";
+
+  /**
+   * `-DFEATURE_NEWGROUNDS_DEBUG`
+   * If this flag is enabled, the game will enable Newgrounds.io's debug functions.
+   * This provides additional information in requests, as well as "faking" medal and leaderboard submissions.
+   */
+  static final FEATURE_NEWGROUNDS_DEBUG:FeatureFlag = "FEATURE_NEWGROUNDS_DEBUG";
+
+  /**
+   * `-DFEATURE_NEWGROUNDS_EVENTS`
+   * If this flag is enabled, the game will attempt to send events to Newgrounds when the user does stuff.
+   * This lets us see cool anonymized stats! It only works if the user is logged in.
+   */
+  static final FEATURE_NEWGROUNDS_EVENTS:FeatureFlag = "FEATURE_NEWGROUNDS_EVENTS";
+
+  /**
+   * `-DFEATURE_NEWGROUNDS_TESTING_MEDALS`
+   * If this flag is enabled, use the medal IDs from the debug test bench.
+   * If disabled, use the actual medal IDs from the release project on Newgrounds.
+   */
+  static final FEATURE_NEWGROUNDS_TESTING_MEDALS:FeatureFlag = "FEATURE_NEWGROUNDS_TESTING_MEDALS";
+
+  /**
+   * `-DFEATURE_OPEN_URL`
+   * If this flag is enabled, the game will support opening URLs (such as the merch page).
+   */
+  static final FEATURE_OPEN_URL:FeatureFlag = "FEATURE_OPEN_URL";
+
+  /**
+   * `-DFEATURE_PARTIAL_SOUNDS`
+   * If this flag is enabled, the game will enable the FlxPartialSound library.
+   * This is used to provide audio previews in Freeplay.
+   * Disabling this will make those previews not play.
+   */
+  static final FEATURE_PARTIAL_SOUNDS:FeatureFlag = "FEATURE_PARTIAL_SOUNDS";
+
+  /**
+   * `-DFEATURE_POLYMOD_MODS`
+   * If this flag is enabled, the game will enable the Polymod library's support for atomic mod loading from the `./mods` folder.
+   * If this flag is disabled, no mods will be loaded.
+   */
+  static final FEATURE_POLYMOD_MODS:FeatureFlag = "FEATURE_POLYMOD_MODS";
+
+  /**
+   * `-DFEATURE_SCREENSHOTS`
+   * If this flag is enabled, the game will support the screenshots feature.
+   */
+  static final FEATURE_SCREENSHOTS:FeatureFlag = "FEATURE_SCREENSHOTS";
+
+  /**
+   * `-DFEATURE_HAXEUI`
+   * If this flag is enabled, the game will enable the HaxeUI interface layer.
+   * This can be used to provide menus, dialogs, and other UI components via HaxeUI.
+   */
+  static final FEATURE_HAXEUI:FeatureFlag = "FEATURE_HAXEUI";
+
+  /**
+   * `-FEATURE_DEBUG_MENU`
+   * If this flag is enabled, a debug menu will be accessible.
+   */
+  static final FEATURE_DEBUG_MENU:FeatureFlag = "FEATURE_DEBUG_MENU";
+
+  /**
+   * `-FEATURE_ANIMATION_EDITOR`
+   * If this flag is enabled, the Animation Editor will be accessible from the debug menu.
+   */
+  static final FEATURE_ANIMATION_EDITOR:FeatureFlag = "FEATURE_ANIMATION_EDITOR";
+
+  /**
+   * `-DFEATURE_CHART_EDITOR`
+   * If this flag is enabled, the Chart Editor will be accessible from the debug menu.
+   */
+  static final FEATURE_CHART_EDITOR:FeatureFlag = "FEATURE_CHART_EDITOR";
+
+  /**
+   * `-DFEATURE_STAGE_EDITOR`
+   * If this flag is enabled, the Stage Editor will be accessible from the debug menu.
+   */
+  static final FEATURE_STAGE_EDITOR:FeatureFlag = "FEATURE_STAGE_EDITOR";
+
+  /**
+   * `-DFEATURE_TOUCH_CONTROLS`
+   * If this flag is enabled, the touch controls for the game is also enabled.
+   * Works with desktop builds I think maybe?
+   */
+  static final FEATURE_TOUCH_CONTROLS:FeatureFlag = "FEATURE_TOUCH_CONTROLS";
+
+  /**
+   * `-DFEATURE_TOUCH_HERE_TO_PLAY`
+   * If this flag is enabled, the game will display a prompt to the user after the preloader completes,
+   * requiring them to click anywhere on the screen to start the game.
+   * This is done to ensure that the audio context can initialize properly on HTML5. Not necessary on desktop.
+   */
+  static final FEATURE_TOUCH_HERE_TO_PLAY:FeatureFlag = "FEATURE_TOUCH_HERE_TO_PLAY";
+
+  /**
+   * `-DFEATURE_VIDEO_PLAYBACK`
+   * If this flag is enabled, the game will enable support for video playback.
+   * This requires the hxvlc library on desktop platforms.
+   */
+  static final FEATURE_VIDEO_PLAYBACK:FeatureFlag = "FEATURE_VIDEO_PLAYBACK";
+
+  /**
+   * `-DFEATURE_VIDEO_SUBTITLES`
+   * If this flag is enabled, the game will be able to show subtitles on video cutscenes.
+   * This requires the hxvlc library on desktop platforms.
+   */
+  static final FEATURE_VIDEO_SUBTITLES:FeatureFlag = "FEATURE_VIDEO_SUBTITLES";
+
+  /**
+   * `-DFEATURE_DEBUG_DISPLAY`
+   * If this flag is enabled, the game will be able to show a framerate counter with the memory and current FPS
+   * This flag is disabled on non debug mobile builds
+   */
+  static final FEATURE_DEBUG_DISPLAY:FeatureFlag = "FEATURE_DEBUG_DISPLAY";
+
+  //
+  // CONFIGURATION FUNCTIONS
+  //
+
+  public function new()
+  {
+    super();
+
+    envConfig = readEnvironmentFile("./.env");
+
+    flair();
+
+    configureApp();
+
+    displayTarget();
+
+    configureFeatureFlags();
+    configureCompileDefines();
+    configureIncludeMacros();
+    configureCustomMacros();
+    configureOutputDir();
+    configurePolymod();
+    configureHaxelibs();
+    configureASTCTextures();
+    configureAssets();
+
+    if (!isLinux())
+    {
+      configureIcons();
+    }
+
+    if (FEATURE_MOBILE_ADVERTISEMENTS.isEnabled(this))
+    {
+      configureAdMobKeys();
+    }
+
+    if (isAndroid())
+    {
+      configureAndroid();
+    }
+
+    if (isIOS())
+    {
+      configureIOS();
+    }
+
+    if (isCPP())
+    {
+      buildHxCppTools();
+    }
+
+    if (!isDisplay())
+    {
+      checkLibraries();
+    }
+  }
+
+  /**
+   * Do something before building, display some ASCII or something IDK
+   */
+  function flair()
+  {
+    // TODO: Implement this.
+    info("Friday Night Funkin' - " + VERSION);
+    info("Initializing build...");
+
+    info("Git Branch:     " + getGitBranch());
+    info("Git Commit:     " + getGitCommit());
+    info("Git Modified?   " + getGitModified());
+    info("Display?        " + isDisplay());
+  }
+
+  /**
+   * Apply basic project metadata, such as the game title and version number,
+   * as well as info like the package name and company (used by various app stores).
+   */
+  function configureApp()
+  {
+    this.meta.title = isMobile() ? TITLE_MOBILE : TITLE;
+
+   
