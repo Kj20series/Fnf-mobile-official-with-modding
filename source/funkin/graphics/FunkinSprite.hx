@@ -1,612 +1,721 @@
-package;
+package funkin.graphics;
 
-// I don't think we can import `funkin` classes here. Macros? Recursion? IDK.
-import hxp.*;
-import lime.tools.*;
-import sys.FileSystem;
-import sys.io.File;
-import haxe.io.Bytes;
+import flixel.FlxSprite;
+import flixel.util.FlxColor;
+import flixel.graphics.FlxGraphic;
+import flixel.tweens.FlxTween;
+import openfl.display3D.textures.TextureBase;
+import funkin.graphics.framebuffer.FixedBitmapData;
+import openfl.display.BitmapData;
+import flixel.math.FlxRect;
+import flixel.math.FlxPoint;
+import flixel.math.FlxMatrix;
+import flixel.graphics.frames.FlxFrame;
+import flixel.FlxCamera;
+import openfl.system.System;
+import flixel.system.FlxAssets.FlxGraphicAsset;
+import funkin.FunkinMemory;
+import animate.internal.SymbolItem;
+import animate.internal.elements.Element;
+import animate.internal.elements.AtlasInstance;
+import animate.internal.elements.SymbolInstance;
+import animate.FlxAnimate;
+import animate.FlxAnimateFrames;
 import haxe.io.Path;
-import haxe.ds.Map;
-import haxe.xml.Printer;
 
 using StringTools;
-using tools.AnsiUtil;
+
+typedef AtlasSpriteSettings =
+{
+  /**
+   * If true, the texture atlas will behave as if it was exported as an SWF file.
+   * Notably, this allows MovieClip symbols to play.
+   */
+  @:optional
+  var swfMode:Bool;
+
+  /**
+   * If true, filters and masks will be cached when the atlas is loaded, instead of during runtime.
+   */
+  @:optional
+  var cacheOnLoad:Bool;
+
+  /**
+   * The filter quality.
+   * Available values are: HIGH, MEDIUM, LOW, and RUDY.
+   *
+   * If you're making an atlas sprite in HScript, you pass an Int instead:
+   *
+   * HIGH - 0
+   * MEDIUM - 1
+   * LOW - 2
+   * RUDY - 3
+   */
+  @:optional
+  var filterQuality:FilterQuality;
+
+  /**
+   * Optional, an array of spritemaps for the atlas to load.
+   */
+  @:optional
+  var spritemaps:Array<SpritemapInput>;
+
+  /**
+   * Optional, string of the metadata.json contents.
+   */
+  @:optional
+  var metadataJson:String;
+
+  /**
+   * Optional, force the cache to use a specific key to index the texture atlas.
+   */
+  @:optional
+  var cacheKey:String;
+
+  /**
+   * If true, the texture atlas will use a new slot in the cache.
+   */
+  @:optional
+  var uniqueInCache:Bool;
+
+  /**
+   * Optional callback for when a symbol is created.
+   */
+  @:optional
+  var onSymbolCreate:animate.internal.SymbolItem->Void;
+
+  /**
+   * Whether to apply the stage matrix, if it was exported from a symbol instance.
+   * Also positions the Texture Atlas as it displays in Animate.
+   * Turning this on is only recommended if you prepositioned the character in Animate.
+   * For other cases, it should be turned off to act similarly to a normal FlxSprite.
+   */
+  @:optional
+  var applyStageMatrix:Bool;
+
+  /**
+   * If enabled, the sprite will render as one texture instead of rendering multiple limbs.
+   * This is useful for stuff like changing alpha, and shaders that require the whole sprite.
+   *
+   * Only enable this if your sprite either:
+   * - Changes alpha to something other than 1.0
+   * - Has a shader or blend mode
+   */
+  @:optional
+  var useRenderTexture:Bool;
+}
 
 /**
- * This HXP performs the functions of a Lime `project.xml` file,
- * but it's written in Haxe rather than XML!
- *
- * This makes it far easier to organize, reuse, and refactor,
- * and improves management of feature flag logic.
+ * An FlxSprite with additional functionality.
+ * - A more efficient method for creating solid color sprites.
+ * - TODO: Better cache handling for textures.
  */
 @:nullSafety
-class Project extends HXProject
+@:access(animate.FlxAnimateController)
+class FunkinSprite extends FlxAnimate
 {
-  //
-  // METADATA
-  //
-
   /**
-   * The game's version number, as a Semantic Versioning string with no prefix.
-   * REMEMBER TO CHANGE THIS WHEN THE GAME UPDATES!
-   * You only have to change it here, the rest of the game will query this value.
+   * @param x Starting X position
+   * @param y Starting Y position
+   * @param path The asset path for the graphic
+   * @param atlasSettings The optional settings for the texture atlas
    */
-  static final VERSION:String = "0.8.3";
-
-  /**
-   * The build's number and version code.
-   * Used when publishing the game to mobile app stores. Should increment with each patch.
-   */
-  static final BUILD_NUMBER:Int = 77;
-
-  /**
-   * The game's name. Used as the default window title.
-   */
-  static final TITLE:String = "FNF': VSLICE";
-
-  /**
-   * The game's name on mobile. Used as the title for the game on the home screen.
-   */
-  static final TITLE_MOBILE:String = "FNF': VSLICE";
-
-  /**
-   * A package name used for identifying the app on various app stores.
-   */
-  static final PACKAGE_NAME:String = "com.fnf.vslice.mobile";
-
-  /**
-   * The name of the generated executable file.
-   * For example, `"Funkin"` will create a file called `Funkin.exe`.
-   */
-  static final EXECUTABLE_NAME:String = "FNFVSlice";
-
-  /**
-   * The relative location of the source code.
-   */
-  static final SOURCE_DIR:String = "source";
-
-  /**
-   * The relative location of the templates folder.
-   */
-  static final TEMPLATES_DIR:String = "templates";
-
-  /**
-   * The fully qualified class path for the game's preloader.
-   * Particularly important on HTML5 but we use it on all platforms.
-   */
-  static final PRELOADER:String = "funkin.ui.transition.preload.FunkinPreloader";
-
-  /**
-   * The fully qualified class path for the entry point class to execute when launching the game.
-   * It's where `public static function main():Void` goes.
-   */
-  static final MAIN_CLASS:String = "Main";
-
-  /**
-   * The company name for the game.
-   * This appears in metadata in places I think.
-   */
-  static final COMPANY:String = "The Funkin' Crew";
-
-  /**
-   * The app's localization languages.
-   */
-  static final LANGUAGES:Array<String> = ["en"];
-
-  /**
-   * The contents of the user's environment config.
-   * Read from the local `.env` file. Used for storing API keys.
-   */
-  static var envConfig:Null<Map<String, Dynamic>> = null;
-
-  //
-  // MOBILE METADATA
-  //
-
-  /**
-   * The app's minimal Android SDK version.
-   */
-  static final ANDROID_MINIMUM_SDK_VERSION:Int = 28;
-
-  /**
-   * The app's target Android SDK version.
-   */
-  static final ANDROID_TARGET_SDK_VERSION:Int = 35;
-
-  static final ANDROID_EXTENSIONS:Array<String> = [
-    "funkin.extensions.CallbackUtil",
-    "funkin.extensions.FNFCExtension",
-    "funkin.extensions.AudioSession"
-  ];
-
-  /**
-   * The team ID to use for the iOS app. Configured in XCode.
-   */
-  static var IOS_TEAM_ID:String = "Z7G7AVNGSH";
-
-  /**
-   * A list of asset file globs to exclude from ASTC compression when creating optimized mobile builds.
-   */
-  static var astcExcludes:Array<String> = [];
-
-  //
-  // BUILD SCRIPTS
-  //
-
-  /**
-   * Path to the Haxe script run before building the game.
-   */
-  static final PREBUILD_HX:String = "source/Prebuild.hx";
-
-  /**
-   * Path to the Haxe script run after building the game.
-   */
-  static final POSTBUILD_HX:String = "source/Postbuild.hx";
-
-  //
-  // ASSET FILTERS
-  //
-
-  /**
-   * Asset path globs to always exclude from asset libraries.
-   */
-  static final EXCLUDE_ASSETS:Array<String> = [".*", "cvs", "thumbs.db", "desktop.ini", "*.hash", "*.md"];
-
-  /**
-   * Asset path globs to exclude on web platforms.
-   */
-  static final EXCLUDE_ASSETS_WEB:Array<String> = ["*.ogg"];
-
-  /**
-   * Asset path globs to exclude on native platforms.
-   */
-  static final EXCLUDE_ASSETS_NATIVE:Array<String> = ["*.mp3"];
-
-  /**
-   * Asset path globs to exclude on platforms with `CENSOR_EXPLETIVES` enabled.
-   */
-  static final EXCLUDE_ASSETS_CENSORED:Array<String> = ["stressCutscene.mp4", "stressPicoCutscene.mp4", "darnellCutscene.mp4"];
-
-  /**
-   * Asset path globs to exclude on platforms with `CENSOR_EXPLETIVES` disabled.
-   */
-  static final EXCLUDE_ASSETS_UNCENSORED:Array<String> = [
-    "stressCutscene-censored.mp4",
-    "stressPicoCutscene-censored.mp4",
-    "darnellCutscene-censored.mp4"
-  ];
-
-  //
-  // ASSET EMBEDDING
-  //
-
-  /**
-   * The songs whose audio files should be embedded inside the executable.
-   */
-  static final EMBED_SONGS_AUDIO:Array<String> = ["spaghetti"];
-
-  //
-  // BUILD FLAGS
-  // Inverse build flags are automatically populated.
-  //
-
-  /**
-   * `-DCENSOR_EXPLETIVES`
-   * If enabled, specifically disable "sexual explitives" in the game.
-   * This will forcibly censor these words (even if naughtyness is enabled), while leaving other swears.
-   *
-   * NOTE: This is needed because the Android platform specifically hates "fuck" and "cunt",
-   * but is fine with other naughtyness such as "cock", "asshole", implied sex, cigarettes, etc.
-   */
-  static final CENSOR_EXPLETIVES:FeatureFlag = "CENSOR_EXPLETIVES";
-
-  /**
-   * `-DEMBED_ASSETS`
-   * Whether to embed all asset libraries into the executable.
-   * Enabled on web, usually disabled on desktop.
-   */
-  static final EMBED_ASSETS:FeatureFlag = "EMBED_ASSETS";
-
-  /**
-   * `-DEXCLUDE_ARMV7`
-   * If this flag is enabled, armv7 won't be compiled when building android.
-   */
-  static final EXCLUDE_ARMV7:FeatureFlag = "EXCLUDE_ARMV7";
-
-  /**
-   * `-DFORCE_BLEND_SHADER`
-   * If this flag is enabled, the game will force the use of shaders to render
-   * certain blend modes, even if the device supports the needed OpenGL extensions.
-   */
-  static final FORCE_BLEND_SHADER:FeatureFlag = "FORCE_BLEND_SHADER";
-
-  /**
-   * `-DGITHUB_BUILD`
-   * If this flag is enabled, the game will use the configuration used by GitHub Actions
-   * to generate playtest builds to be pushed to the launcher.
-   *
-   * This is generally used to forcibly enable debugging features,
-   * even when the game is built in release mode for performance.
-   */
-  static final GITHUB_BUILD:FeatureFlag = "GITHUB_BUILD";
-
-  /**
-   * `-DHARDCODED_CREDITS`
-   * If this flag is enabled, the credits will be parsed and encoded in the game at compile time,
-   * rather than read from JSON data at runtime.
-   */
-  static final HARDCODED_CREDITS:FeatureFlag = "HARDCODED_CREDITS";
-
-  /**
-   * `-DPRELOAD_ALL`
-   * Whether to preload all asset libraries.
-   * Disabled on web, enabled on desktop.
-   */
-  static final PRELOAD_ALL:FeatureFlag = "PRELOAD_ALL";
-
-  /**
-   * `-DREDIRECT_ASSETS_FOLDER`
-   * If this flag is enabled, the game will redirect the `assets` folder from the `export` folder
-   * to the `assets` folder at the root of the workspace.
-   * This is useful for ensuring hot reloaded changes don't get lost when rebuilding the game.
-   */
-  static final REDIRECT_ASSETS_FOLDER:FeatureFlag = "REDIRECT_ASSETS_FOLDER";
-
-  /**
-   * `-DTESTING_ADS`
-   * If this flag is enabled, mobile advertisements will use testing mode.
-   */
-  static final TESTING_ADS:FeatureFlag = "TESTING_ADS";
-
-  /**
-   * `-DUNLOCK_EVERYTHING`
-   * If this flag is enabled, the game will assume all songs have been beaten and all content is available.
-   */
-  static final UNLOCK_EVERYTHING:FeatureFlag = "UNLOCK_EVERYTHING";
-
-  //
-  // FEATURE FLAGS
-  // Inverse build flags are automatically populated.
-  //
-
-  /**
-   * `-DFEATURE_COMPRESSED_TEXTURES`
-   * If this flag is enabled, ASTC compressed textures will be used over uncompressed PNGs.
-   * Compressed ASTC textures provide lower memory usage but at the cost of a slightly higher files size & more GPU usage.
-   * ASTC textures are GPU Rendered so they have a few cons:
-   * - Pixel Data of bitmaps cannot be read nor edited directly.
-   * - Some filters specifically the ones in openfl.filters package won't work properly because they directly modify the bitmap pixels.
-   * - ASync loading for GPU Compressed Textures doesn't work due to OpenGL being single-threaded. (Looking online there seem to be some workarounds but it's pretty complicated...).
-   * One thing to note is that ASTC textures aren't available on all platforms:
-   * - For iOS, it's available starting from phones with A8 chips, so anything from iPhone 6 and beyond has it.
-   * - For Android, it's sorta mixed, but mostly any mid range phone that came after 2017 does support ASTC.
-   * - For desktop, it appears to be only supported on Intergrated Graphics from our testing.
-   */
-  static final FEATURE_COMPRESSED_TEXTURES:FeatureFlag = "FEATURE_COMPRESSED_TEXTURES";
-
-  /**
-   * `-DFEATURE_DEBUG_FUNCTIONS`
-   * If this flag is enabled, the game will have all playtester-only debugging functionality enabled.
-   * This includes debug hotkeys like time travel in the Play State.
-   * By default, enabled on debug builds or playtester builds and disabled on release builds.
-   */
-  static final FEATURE_DEBUG_FUNCTIONS:FeatureFlag = "FEATURE_DEBUG_FUNCTIONS";
-
-  /**
-   * `-DFEATURE_RESULTS_DEBUG`
-   * If this flag is enabled, a debug menu for Results screen will be accessible from the debug menu.
-   */
-  static final FEATURE_RESULTS_DEBUG:FeatureFlag = "FEATURE_RESULTS_DEBUG";
-
-  /**
-   * `-DFEATURE_DEBUG_TRACY`
-   * If this flag is enabled, the game will have the necessary hooks for the Tracy profiler.
-   * Only enable this if you're using the correct fork of Haxe to support this.
-   * @see https://github.com/HaxeFoundation/hxcpp/pull/1153
-   */
-  static final FEATURE_DEBUG_TRACY:FeatureFlag = "FEATURE_DEBUG_TRACY";
-
-  /**
-   * `-DFEATURE_DISCORD_RPC`
-   * If this flag is enabled, the game will enable the Discord Remote Procedure Call library.
-   * This is used to provide Discord Rich Presence support.
-   */
-  static final FEATURE_DISCORD_RPC:FeatureFlag = "FEATURE_DISCORD_RPC";
-
-  /**
-   * `-DFEATURE_LOST_FOCUS_VOLUME`
-   * If this flag is enabled, the game will reduce application volume, when lost focus.
-   * Allowed only on Desktop targets.
-   */
-  static final FEATURE_LOST_FOCUS_VOLUME:FeatureFlag = "FEATURE_LOST_FOCUS_VOLUME";
-
-  /**
-   * `-DFEATURE_FILE_DROP`
-   * If this flag is enabled, the game will support dragging and dropping files onto it for various features.
-   * Disabled on MacOS.
-   */
-  static final FEATURE_FILE_DROP:FeatureFlag = "FEATURE_FILE_DROP";
-
-  /**
-   * `-DFEATURE_FUNKVIS`
-   * If this flag is enabled, the game will enable the Funkin Visualizer library.
-   * This is used to provide audio visualization like Nene's speaker.
-   * Disabling this will make some waveforms inactive.
-   */
-  static final FEATURE_FUNKVIS:FeatureFlag = "FEATURE_FUNKVIS";
-
-  /**
-   * `-DFEATURE_GHOST_TAPPING`
-   * If this flag is enabled, misses will not be counted when it is not the player's turn.
-   * Misses are still counted when the player has notes to hit.
-   */
-  static final FEATURE_GHOST_TAPPING:FeatureFlag = "FEATURE_GHOST_TAPPING";
-
-  /**
-   * `-DFEATURE_HAPTICS`
-   * If this flag is enabled, the game provide haptic feedback vibrations.
-   * Works for mobile targets (Android and iOS).
-   */
-  static final FEATURE_HAPTICS:FeatureFlag = "FEATURE_HAPTICS";
-
-  /**
-   * `-DFEATURE_LAG_ADJUSTMENT`
-   * If this flag is enabled, the input offsets menu will be available to configure your audio and visual offsets.
-   */
-  static final FEATURE_LAG_ADJUSTMENT:FeatureFlag = "FEATURE_LAG_ADJUSTMENT";
-
-  /**
-   * `-DFEATURE_LOG_TRACE`
-   * If this flag is enabled, the game will print debug traces to the console.
-   * Disable to improve performance a bunch.
-   */
-  static final FEATURE_LOG_TRACE:FeatureFlag = "FEATURE_LOG_TRACE";
-
-  /**
-   * `-DFEATURE_DEBUG_FILE_LOGGING`
-   * If this flag is enabled, the game will print debug traces to a log file near the game's executable.
-   * Disable to improve performance a bunch.
-   */
-  static final FEATURE_DEBUG_FILE_LOGGING:FeatureFlag = "FEATURE_DEBUG_FILE_LOGGING";
-
-  /**
-   * `-DFEATURE_MOBILE_ADVERTISEMENTS`
-   * If this flag is enabled, Google AdMob will be enabled.
-   * Banner and interstitial ads will sometimes appear.
-   */
-  static final FEATURE_MOBILE_ADVERTISEMENTS:FeatureFlag = "FEATURE_MOBILE_ADVERTISEMENTS";
-
-  /**
-   * `-DFEATURE_MOBILE_IAP`
-   * If this flag is enabled, in-app purchases will be enabled.
-   * This includes the in-app purchase to disable mobile advertisements.
-   */
-  static final FEATURE_MOBILE_IAP:FeatureFlag = "FEATURE_MOBILE_IAP";
-
-  /**
-   * `-DFEATURE_MOBILE_IAR`
-   * If this feature flag is enabled, the user may sometimes be prompted to review the app on their respective store.
-   */
-  static final FEATURE_MOBILE_IAR:FeatureFlag = "FEATURE_MOBILE_IAR";
-
-  /**
-   * `-DFEATURE_MOBILE_WEBVIEW`
-   * If this feature flag is enabled, the user may sometimes be prompted to review the app on their respective store.
-   */
-  static final FEATURE_MOBILE_WEBVIEW:FeatureFlag = "FEATURE_MOBILE_WEBVIEW";
-
-  /**
-   * `-DFEATURE_NAUGHTYNESS`
-   * If this feature flag is enabled, naughtyness will be a toggleable option in the Options Menu.
-   * If disabled, the option will be hidden and the game will always be censored.
-   */
-  static final FEATURE_NAUGHTYNESS:FeatureFlag = "FEATURE_NAUGHTYNESS";
-
-  /**
-   * `-DFEATURE_NEWGROUNDS`
-   * If this flag is enabled, the game will enable the Newgrounds library.
-   * This is used to provide Medal and Leaderboard support.
-   */
-  static final FEATURE_NEWGROUNDS:FeatureFlag = "FEATURE_NEWGROUNDS";
-
-  /**
-   * `-DFEATURE_NEWGROUNDS_AUTOLOGIN`
-   * If this flag is enabled, the game will attempt to automatically login to Newgrounds on startup.
-   */
-  static final FEATURE_NEWGROUNDS_AUTOLOGIN:FeatureFlag = "FEATURE_NEWGROUNDS_AUTOLOGIN";
-
-  /**
-   * `-DFEATURE_NEWGROUNDS_DEBUG`
-   * If this flag is enabled, the game will enable Newgrounds.io's debug functions.
-   * This provides additional information in requests, as well as "faking" medal and leaderboard submissions.
-   */
-  static final FEATURE_NEWGROUNDS_DEBUG:FeatureFlag = "FEATURE_NEWGROUNDS_DEBUG";
-
-  /**
-   * `-DFEATURE_NEWGROUNDS_EVENTS`
-   * If this flag is enabled, the game will attempt to send events to Newgrounds when the user does stuff.
-   * This lets us see cool anonymized stats! It only works if the user is logged in.
-   */
-  static final FEATURE_NEWGROUNDS_EVENTS:FeatureFlag = "FEATURE_NEWGROUNDS_EVENTS";
-
-  /**
-   * `-DFEATURE_NEWGROUNDS_TESTING_MEDALS`
-   * If this flag is enabled, use the medal IDs from the debug test bench.
-   * If disabled, use the actual medal IDs from the release project on Newgrounds.
-   */
-  static final FEATURE_NEWGROUNDS_TESTING_MEDALS:FeatureFlag = "FEATURE_NEWGROUNDS_TESTING_MEDALS";
-
-  /**
-   * `-DFEATURE_OPEN_URL`
-   * If this flag is enabled, the game will support opening URLs (such as the merch page).
-   */
-  static final FEATURE_OPEN_URL:FeatureFlag = "FEATURE_OPEN_URL";
-
-  /**
-   * `-DFEATURE_PARTIAL_SOUNDS`
-   * If this flag is enabled, the game will enable the FlxPartialSound library.
-   * This is used to provide audio previews in Freeplay.
-   * Disabling this will make those previews not play.
-   */
-  static final FEATURE_PARTIAL_SOUNDS:FeatureFlag = "FEATURE_PARTIAL_SOUNDS";
-
-  /**
-   * `-DFEATURE_POLYMOD_MODS`
-   * If this flag is enabled, the game will enable the Polymod library's support for atomic mod loading from the `./mods` folder.
-   * If this flag is disabled, no mods will be loaded.
-   */
-  static final FEATURE_POLYMOD_MODS:FeatureFlag = "FEATURE_POLYMOD_MODS";
-
-  /**
-   * `-DFEATURE_SCREENSHOTS`
-   * If this flag is enabled, the game will support the screenshots feature.
-   */
-  static final FEATURE_SCREENSHOTS:FeatureFlag = "FEATURE_SCREENSHOTS";
-
-  /**
-   * `-DFEATURE_HAXEUI`
-   * If this flag is enabled, the game will enable the HaxeUI interface layer.
-   * This can be used to provide menus, dialogs, and other UI components via HaxeUI.
-   */
-  static final FEATURE_HAXEUI:FeatureFlag = "FEATURE_HAXEUI";
-
-  /**
-   * `-FEATURE_DEBUG_MENU`
-   * If this flag is enabled, a debug menu will be accessible.
-   */
-  static final FEATURE_DEBUG_MENU:FeatureFlag = "FEATURE_DEBUG_MENU";
-
-  /**
-   * `-FEATURE_ANIMATION_EDITOR`
-   * If this flag is enabled, the Animation Editor will be accessible from the debug menu.
-   */
-  static final FEATURE_ANIMATION_EDITOR:FeatureFlag = "FEATURE_ANIMATION_EDITOR";
-
-  /**
-   * `-DFEATURE_CHART_EDITOR`
-   * If this flag is enabled, the Chart Editor will be accessible from the debug menu.
-   */
-  static final FEATURE_CHART_EDITOR:FeatureFlag = "FEATURE_CHART_EDITOR";
-
-  /**
-   * `-DFEATURE_STAGE_EDITOR`
-   * If this flag is enabled, the Stage Editor will be accessible from the debug menu.
-   */
-  static final FEATURE_STAGE_EDITOR:FeatureFlag = "FEATURE_STAGE_EDITOR";
-
-  /**
-   * `-DFEATURE_TOUCH_CONTROLS`
-   * If this flag is enabled, the touch controls for the game is also enabled.
-   * Works with desktop builds I think maybe?
-   */
-  static final FEATURE_TOUCH_CONTROLS:FeatureFlag = "FEATURE_TOUCH_CONTROLS";
-
-  /**
-   * `-DFEATURE_TOUCH_HERE_TO_PLAY`
-   * If this flag is enabled, the game will display a prompt to the user after the preloader completes,
-   * requiring them to click anywhere on the screen to start the game.
-   * This is done to ensure that the audio context can initialize properly on HTML5. Not necessary on desktop.
-   */
-  static final FEATURE_TOUCH_HERE_TO_PLAY:FeatureFlag = "FEATURE_TOUCH_HERE_TO_PLAY";
-
-  /**
-   * `-DFEATURE_VIDEO_PLAYBACK`
-   * If this flag is enabled, the game will enable support for video playback.
-   * This requires the hxvlc library on desktop platforms.
-   */
-  static final FEATURE_VIDEO_PLAYBACK:FeatureFlag = "FEATURE_VIDEO_PLAYBACK";
-
-  /**
-   * `-DFEATURE_VIDEO_SUBTITLES`
-   * If this flag is enabled, the game will be able to show subtitles on video cutscenes.
-   * This requires the hxvlc library on desktop platforms.
-   */
-  static final FEATURE_VIDEO_SUBTITLES:FeatureFlag = "FEATURE_VIDEO_SUBTITLES";
-
-  /**
-   * `-DFEATURE_DEBUG_DISPLAY`
-   * If this flag is enabled, the game will be able to show a framerate counter with the memory and current FPS
-   * This flag is disabled on non debug mobile builds
-   */
-  static final FEATURE_DEBUG_DISPLAY:FeatureFlag = "FEATURE_DEBUG_DISPLAY";
-
-  //
-  // CONFIGURATION FUNCTIONS
-  //
-
-  public function new()
+  public function new(?x:Float = 0, ?y:Float = 0, ?path:String, ?atlasSettings:AtlasSpriteSettings)
   {
-    super();
+    super(x, y);
 
-    envConfig = readEnvironmentFile("./.env");
-
-    flair();
-
-    configureApp();
-
-    displayTarget();
-
-    configureFeatureFlags();
-    configureCompileDefines();
-    configureIncludeMacros();
-    configureCustomMacros();
-    configureOutputDir();
-    configurePolymod();
-    configureHaxelibs();
-    configureASTCTextures();
-    configureAssets();
-
-    if (!isLinux())
+    if (path != null)
     {
-      configureIcons();
+      var ext:String = Path.extension(path);
+
+      switch (ext)
+      {
+        case 'png':
+          this.loadGraphic(path);
+
+        case '':
+          // Do the opposite of Paths.animateAtlas since that function is called in loadTextureAtlas.
+          var lib:String = Paths.getLibrary(path);
+
+          if (lib == 'preload')
+          {
+            path = path.replace('assets/images/', '');
+          }
+          else
+          {
+            path = path.replace('$lib:assets/$lib/images/', '');
+          }
+
+          this.loadTextureAtlas(path, lib, atlasSettings);
+
+        default:
+          FlxG.log.warn('Texture path $path is not a valid path. Make sure the path points to either an image or a folder with the texture atlas files!');
+      }
+    }
+  }
+
+  override function initVars():Void
+  {
+    super.initVars();
+
+    var newController:FunkinAnimationController = new FunkinAnimationController(this);
+
+    animation = newController;
+    anim = newController;
+  }
+
+  /**
+   * Create a new FunkinSprite with a static texture.
+   * @param x The starting X position.
+   * @param y The starting Y position.
+   * @param key The key of the texture to load.
+   * @return The new FunkinSprite.
+   */
+  public static function create(x:Float = 0.0, y:Float = 0.0, key:String):FunkinSprite
+  {
+    var sprite:FunkinSprite = new FunkinSprite(x, y);
+    sprite.loadTexture(key);
+    return sprite;
+  }
+
+  /**
+   * Create a new FunkinSprite with a Sparrow atlas animated texture.
+   * @param x The starting X position.
+   * @param y The starting Y position.
+   * @param key The key of the texture to load.
+   * @return The new FunkinSprite.
+   */
+  public static function createSparrow(x:Float = 0.0, y:Float = 0.0, key:String):FunkinSprite
+  {
+    var sprite:FunkinSprite = new FunkinSprite(x, y);
+    sprite.loadSparrow(key);
+    return sprite;
+  }
+
+  /**
+   * Create a new FunkinSprite with a Packer atlas animated texture.
+   * @param x The starting X position.
+   * @param y The starting Y position.
+   * @param key The key of the texture to load.
+   * @return The new FunkinSprite.
+   */
+  public static function createPacker(x:Float = 0.0, y:Float = 0.0, key:String):FunkinSprite
+  {
+    var sprite:FunkinSprite = new FunkinSprite(x, y);
+    sprite.loadPacker(key);
+    return sprite;
+  }
+
+  /**
+   * Create a new FunkinSprite with an Adobe Animate texture atlas.
+   * @param x The starting X position.
+   * @param y The starting Y position.
+   * @param key The key of the texture to load.
+   * @return The new FunkinSprite.
+   */
+  public static function createTextureAtlas(x:Float = 0.0, y:Float = 0.0, key:String, ?assetLibrary:Null<String>, ?settings:AtlasSpriteSettings):FunkinSprite
+  {
+    var sprite:FunkinSprite = new FunkinSprite(x, y);
+    sprite.loadTextureAtlas(key, assetLibrary ?? "", settings);
+    return sprite;
+  }
+
+  /**
+   * Load a static image as the sprite's texture.
+   * @param key The key of the texture to load.
+   * @return This sprite, for chaining.
+   */
+  public function loadTexture(key:String):FunkinSprite
+  {
+    var graphicKey:String = Paths.image(key);
+
+    if (!Assets.exists(graphicKey, IMAGE))
+    {
+      FlxG.log.error('Texture not found, check your path! $graphicKey');
+      return this;
     }
 
-    if (FEATURE_MOBILE_ADVERTISEMENTS.isEnabled(this))
+    if (!FunkinMemory.isTextureCached(graphicKey))
     {
-      configureAdMobKeys();
+      FlxG.log.warn('Texture not cached, may experience stuttering! $graphicKey');
     }
 
-    if (isAndroid())
+    loadGraphic(graphicKey);
+
+    return this;
+  }
+
+  public function loadTextureAsync(key:String, fade:Bool = false):Void
+  {
+    var fadeTween:Null<FlxTween> = null;
+    if (fade)
     {
-      configureAndroid();
+      fadeTween = FlxTween.tween(this, {alpha: 0}, 0.25);
     }
 
-    if (isIOS())
+    trace('[ASYNC] Start loading image (${key})');
+    graphic.persist = true;
+    openfl.Assets.loadBitmapData(key)
+      .onComplete(function(bitmapData:openfl.display.BitmapData)
+      {
+        trace('[ASYNC] Finished loading image');
+        var cache:Bool = false;
+        loadBitmapData(bitmapData, cache);
+
+        if (fadeTween != null)
+        {
+          fadeTween.cancel();
+          FlxTween.tween(this, {alpha: 1.0}, 0.25);
+        }
+      })
+      .onError(function(error:Dynamic)
+      {
+        trace('[ASYNC] Failed to load image: ${error}');
+        if (fadeTween != null)
+        {
+          fadeTween.cancel();
+          this.alpha = 1.0;
+        }
+      })
+      .onProgress(function(progress:Int, total:Int)
+      {
+        trace('[ASYNC] Loading image progress: ${progress}/${total}');
+      });
+  }
+
+  /**
+   * Apply an OpenFL `BitmapData` to this sprite.
+   * @param input The OpenFL `BitmapData` to apply
+   * @return This sprite, for chaining
+   */
+  public function loadBitmapData(input:BitmapData, cache:Bool = true):FunkinSprite
+  {
+    if (cache)
     {
-      configureIOS();
+      loadGraphic(input);
+    }
+    else
+    {
+      var graphic:FlxGraphic = FlxGraphic.fromBitmapData(input, false, null, false);
+      this.graphic = graphic;
+      this.frames = this.graphic.imageFrame;
     }
 
-    if (isCPP())
+    return this;
+  }
+
+  /**
+   * Apply an OpenFL `TextureBase` to this sprite.
+   * @param input The OpenFL `TextureBase` to apply
+   * @return This sprite, for chaining
+   */
+  public function loadTextureBase(input:TextureBase):Null<FunkinSprite>
+  {
+    var inputBitmap:Null<FixedBitmapData> = FixedBitmapData.fromTexture(input);
+    if (inputBitmap == null)
     {
-      buildHxCppTools();
+      FlxG.log.warn('loadTextureBase - input resulted in null bitmap! $input');
+      return null;
     }
 
-    if (!isDisplay())
+    return loadBitmapData(inputBitmap);
+  }
+
+  /**
+   * Loads an Adobe Animate texture atlas as the sprite's texture.
+   * @param key The key of the texture to load.
+   * @param settings Additional settings for loading the atlas.
+   * @return This sprite, for chaining.
+   */
+  public function loadTextureAtlas(key:Null<String>, ?assetLibrary:Null<String>, ?settings:AtlasSpriteSettings):FunkinSprite
+  {
+    if (key == null)
     {
-      checkLibraries();
+      throw 'Null path specified for loadTextureAtlas()!';
+    }
+
+    if (settings == null)
+    {
+      settings = getDefaultAtlasSettings();
+    }
+
+    this.applyStageMatrix = settings.applyStageMatrix ?? false;
+    this.useRenderTexture = settings.useRenderTexture ?? false;
+
+    frames = Paths.getAnimateAtlas(key, assetLibrary, settings);
+
+    return this;
+  }
+
+  /**
+   * Load an animated texture (Sparrow atlas spritesheet) as the sprite's texture.
+   * @param key The key of the texture to load.
+   * @return This sprite, for chaining.
+   */
+  public function loadSparrow(key:String):FunkinSprite
+  {
+    var graphicKey:String = Paths.image(key);
+    if (!FunkinMemory.isTextureCached(graphicKey)) FlxG.log.warn('Texture not cached, may experience stuttering! $graphicKey');
+
+    this.frames = Paths.getSparrowAtlas(key);
+
+    return this;
+  }
+
+  /**
+   * Load an animated texture (Packer atlas spritesheet) as the sprite's texture.
+   * @param key The key of the texture to load.
+   * @return This sprite, for chaining.
+   */
+  public function loadPacker(key:String):FunkinSprite
+  {
+    var graphicKey:String = Paths.image(key);
+    if (!FunkinMemory.isTextureCached(graphicKey)) FlxG.log.warn('Texture not cached, may experience stuttering! $graphicKey');
+
+    this.frames = Paths.getPackerAtlas(key);
+
+    return this;
+  }
+
+  /**
+   * @param id The animation ID to check.
+   * @return Whether the animation is dynamic (has multiple frames). `false` for static, one-frame animations.
+   */
+  public function isAnimationDynamic(id:String):Bool
+  {
+    var animData = null;
+    if (this.animation == null) return false;
+    animData = this.animation.getByName(id);
+    if (animData == null) return false;
+    return animData.numFrames > 1;
+  }
+
+  /**
+   * Whether or not this sprite has an animation with the given ID.
+   * @param id The ID of the animation to check.
+   */
+  public function hasAnimation(id:String):Bool
+  {
+    var animationList:Array<String> = this.animation?.getNameList() ?? [];
+    if (animationList.contains(id))
+    {
+      return true;
+    }
+    else if (this.anim.hasAnimateAtlas && !animationList.contains(id))
+    {
+      return addAnimationIfMissing(id);
+    }
+
+    return false;
+  }
+
+  /**
+   * Adds an animation if it doesn't exist.
+   * @param id The animation ID to check.
+   */
+  function addAnimationIfMissing(id:String):Bool
+  {
+    @:privateAccess
+    var symbols:Array<String> = this.library.dictionary.keys().array();
+    var frameLabels:Array<String> = listAnimations();
+
+    if (frameLabels.contains(id))
+    {
+      // Animation exists as a frame label but wasn't added, so we add it
+      anim.addByFrameLabel(id, id, this.library.frameRate, false);
+      return true;
+    }
+    else if (symbols.contains(id))
+    {
+      // Animation exists as a symbol but wasn't added, so we add it
+      anim.addBySymbol(id, id, this.library.frameRate, false);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Gets every frame on every symbol that starts with the given keyword.
+   * @param keyword The keyword to search for.
+   * @return An array of frames.
+   */
+  public function getFramesWithKeyword(keyword:String):Array<animate.internal.Frame>
+  {
+    if (!this.anim.hasAnimateAtlas)
+    {
+      trace('WARNING: getFramesWithKeyword() only works on texture atlases!');
+      return [];
+    }
+
+    var symbolItems:Array<animate.internal.SymbolItem> = [];
+    var frames:Array<animate.internal.Frame> = [];
+
+    @:privateAccess
+    for (symbol in this.library.dictionary.keys())
+    {
+      var symbolItem:Null<animate.internal.SymbolItem> = this.library.getSymbol(symbol);
+      if (symbolItem == null) continue;
+
+      if (symbolItem.name.contains(keyword))
+      {
+        symbolItems.push(symbolItem);
+      }
+    }
+
+    for (symbolItem in symbolItems)
+    {
+      symbolItem.timeline.forEachLayer((layer) ->
+      {
+        layer.forEachFrame((frame) ->
+        {
+          frames.push(frame);
+        });
+      });
+    }
+
+    return frames;
+  }
+
+  /**
+   * Gets the current animation ID.
+   */
+  public function getCurrentAnimation():String
+  {
+    return this.animation?.curAnim?.name ?? '';
+  }
+
+  /**
+   * Whether or not the current animation is finished.
+   */
+  public function isAnimationFinished():Bool
+  {
+    return this.animation?.finished ?? false;
+  }
+
+  /**
+   * Acts similarly to `makeGraphic`, but with improved memory usage,
+   * at the expense of not being able to paint onto the resulting sprite.
+   *
+   * @param width The target width of the sprite.
+   * @param height The target height of the sprite.
+   * @param color The color to fill the sprite with.
+   * @return This sprite, for chaining.
+   */
+  public function makeSolidColor(width:Int, height:Int, color:FlxColor = FlxColor.WHITE):FunkinSprite
+  {
+    // Create a tiny solid color graphic and scale it up to the desired size.
+    var graphic:FlxGraphic = FlxG.bitmap.create(2, 2, color, false, 'solid#${color.toHexString(true, false)}');
+    frames = graphic.imageFrame;
+    scale.set(width / 2.0, height / 2.0);
+    updateHitbox();
+
+    return this;
+  }
+
+  /**
+   * @return A list of all the animations this sprite has available.
+   */
+  public function listAnimations():Array<String>
+  {
+    var frameLabels:Array<String> = getFrameLabelList();
+    var animationList:Array<String> = this.animation?.getNameList() ?? [];
+
+    return frameLabels.concat(animationList);
+  }
+
+  /**
+   * TEXTURE ATLAS-EXCLUSIVE FUNCTIONS
+   * These functions only work if the sprite's texture is an Adobe Animate texture atlas.
+   * Calling these functions on non-texture atlases will do nothing.
+   */
+  /**
+   * Gets a list of frame labels from the default timeline.
+   */
+  public function getFrameLabelList():Array<String>
+  {
+    if (!this.anim.hasAnimateAtlas)
+    {
+      trace('WARNING: getFrameLabelList() only works on texture atlases!');
+      return [];
+    }
+
+    var foundLabels:Array<String> = [];
+    var mainTimeline:Null<animate.internal.Timeline> = this.library.timeline;
+
+    for (layer in mainTimeline.layers)
+    {
+      @:nullSafety(Off)
+      for (frame in layer.frames)
+      {
+        if (frame.name.rtrim() != '')
+        {
+          foundLabels.push(frame.name);
+        }
+      }
+    }
+
+    return foundLabels;
+  }
+
+  /**
+   * Gets a frame label by its name.
+   * @param name The name of the frame label to retrieve.
+   * @return The frame label, or null if it doesn't exist.
+   */
+  public function getFrameLabel(name:String, ?timeline:animate.internal.Timeline):Null<animate.internal.Frame>
+  {
+    if (!this.anim.hasAnimateAtlas)
+    {
+      trace('WARNING: getFrameLabel() only works on texture atlases!');
+      return null;
+    }
+
+    for (layer in (timeline ?? this.timeline).layers)
+    {
+      @:nullSafety(Off)
+      for (frame in layer.frames)
+      {
+        if (frame.name == name)
+        {
+          return frame;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Returns the default symbol in the atlas.
+   */
+  public function getDefaultSymbol():String
+  {
+    if (!this.anim.hasAnimateAtlas)
+    {
+      trace('WARNING: getDefaultSymbol() only works on texture atlases!');
+      return '';
+    }
+
+    return library.timeline.name;
+  }
+
+  /**
+   * Replaces the graphic of a symbol in the atlas.
+   * @param symbol The symbol to replace.
+   * @param graphic The new graphic to use.
+   * @param adjustScale Whether to adjust the scale of new frame to match the old one.
+   */
+  public function replaceSymbolGraphic(symbol:String, ?graphic:Null<FlxGraphicAsset>, ?adjustScale:Bool = true):Void
+  {
+    if (!this.anim.hasAnimateAtlas)
+    {
+      trace('WARNING: replaceSymbolGraphic() only works on texture atlases!');
+      return;
+    }
+
+    var elements:Array<Element> = getSymbolElements(symbol);
+
+    for (element in elements)
+    {
+      var atlasInstance:AtlasInstance = element.toAtlasInstance();
+      var frame:Null<FlxFrame> = graphic != null ? FlxG.bitmap.add(graphic).imageFrame.frame : null;
+
+      atlasInstance.replaceFrame(frame, adjustScale);
+      element = atlasInstance;
     }
   }
 
   /**
-   * Do something before building, display some ASCII or something IDK
+   * Returns the first element of a symbol in the atlas.
+   * @param symbol The symbol to get elements from.
+   * @return The first element of the symbol. WARNING: Can be null.
    */
-  function flair()
+  public function getFirstElement(symbol:String):Null<Element>
   {
-    // TODO: Implement this.
-    info("Friday Night Funkin' - " + VERSION);
-    info("Initializing build...");
+    if (!this.anim.hasAnimateAtlas)
+    {
+      trace('WARNING: getFirstElement() only works on texture atlases!');
+      return null;
+    }
 
-    info("Git Branch:     " + getGitBranch());
-    info("Git Commit:     " + getGitCommit());
-    info("Git Modified?   " + getGitModified());
-    info("Display?        " + isDisplay());
+    var symbolElements:Array<Element> = getSymbolElements(symbol);
+    return symbolElements.length > 0 ? symbolElements[0] : null;
   }
 
   /**
-   * Apply basic project metadata, such as the game title and version number,
-   * as well as info like the package name and company (used by various app stores).
+   * Returns the elements of a symbol in the atlas.
+   * @param symbol The symbol to get elements from.
    */
-  function configureApp()
+  public function getSymbolElements(symbol:String):Array<Element>
   {
-    this.meta.title = isMobile() ? TITLE_MOBILE :
+    if (!this.anim.hasAnimateAtlas)
+    {
+      trace('WARNING: getSymbolElements() only works on texture atlases!');
+      return [];
+    }
+
+    var symbolInstance:Null<SymbolItem> = this.library.getSymbol(symbol);
+
+    if (symbolInstance == null)
+    {
+      throw 'Symbol not found in atlas: ${symbol}';
+      return [];
+    }
+
+    var elements:Array<Element> = symbolInstance.timeline.getElementsAtIndex(0);
+
+    if (elements?.length == 0)
+    {
+      trace('WARNING: No Atlas Elements found for "$symbol" symbol.');
+    }
+
+    return elements ?? [];
+  }
+
+  /**
+   * Scales an element by a certain multiplier.
+   * @param element The element to scale.
+   * @param scale The scale multiplier.
+   * @param positionOffset The offset to apply to `tx` and `ty` after scaling.
+   * (Or in other words, the position of the element.)
+   */
+  public function scaleElement(element:Element, scale:Float, positionOffset:Float = 0, scaleEverything:Bool = false):Void
+  {
+    if (!this.anim.hasAnimateAtlas)
+    {
+      trace('WARNING: scaleElement() only works on texture atlases!');
+      return;
+    }
+
+    var elementMatrix:FlxMatrix = element.matrix;
+
+    if (scaleEverything)
+    {
+      elementMatrix.scale(scale, scale);
+      return;
+    }
+
+    var symbolInstance:SymbolInstance = element.parentFrame.convertToSymbol(0, 1);
+    var transformPoint:FlxPoint = symbolInstance.transformationPoint;
+
+    elementMatrix.a += scale;
+    elementMatrix.d += scale;
+
+    elementMatrix.tx -= transformPoint.x * scale;
+    elementMatrix.ty -= transformPoint.y * scale;
+
+    elementMatrix.tx -= positionOffset;
+    elementMatrix.ty -= positionOffset;
+  }
+
+  /**
+   * Gets the default settings for a texture atlas sprite.
+   * @return The default settings for a texture atlas sprite.
+   */
+  public function getDefaultAtlasSettings():AtlasSpriteSettings
+  {
+    return {
+      swfMode: false,
+      cacheOnLoad: false,
+      filterQuality:
