@@ -140,14 +140,6 @@ jobs:
           echo "====== LIME CONFIG ======"
           haxelib run lime config
 
-      - name: Decode keystore
-        run: |
-          echo "====== DECODING KEYSTORE ======"
-          echo "${{ secrets.KEYSTORE_B64 }}" | base64 --decode > keystore.jks
-          echo "Keystore decoded successfully."
-          echo "====== KEYSTORE INFO ======"
-          keytool -list -v -keystore keystore.jks -storepass ${{ secrets.KEYSTORE_PASSWORD }} | head -20
-
       - name: Populate .env
         run: |
           echo "====== POPULATING .ENV ======"
@@ -178,30 +170,9 @@ jobs:
           echo "====== BUILD OUTPUT ======"
           find export/release/android -type f | sort
 
-      - name: Sign APK
-        run: |
-          echo "====== SIGNING APK ======"
-          APK_PATH="export/release/android/bin/app/build/outputs/apk/release/app-release-unsigned.apk"
-          echo "Signing: $APK_PATH"
-          jarsigner \
-            -verbose \
-            -sigalg SHA256withRSA \
-            -digestalg SHA-256 \
-            -keystore keystore.jks \
-            -storepass ${{ secrets.KEYSTORE_PASSWORD }} \
-            -keypass ${{ secrets.KEY_PASSWORD }} \
-            $APK_PATH \
-            ${{ secrets.KEY_ALIAS }}
-          echo "====== ZIPALIGNING APK ======"
-          $ANDROID_SDK_ROOT/build-tools/34.0.0/zipalign -v 4 \
-            $APK_PATH \
-            FNFVSlice.apk
-          echo "====== FINAL APK INFO ======"
-          ls -lah FNFVSlice.apk
-
       - name: Save APK artifact
         if: ${{ github.event.inputs.save-artifact || true }}
         uses: actions/upload-artifact@v4
         with:
           name: FNFVSlice-android
-          path: FNFVSlice.apk
+          path: export/release/android/bin/app/build/outputs/apk/debug/
