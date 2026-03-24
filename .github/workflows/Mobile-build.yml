@@ -3,6 +3,9 @@
 name: Build Android (Debug)
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       build-defines:
@@ -204,7 +207,7 @@ jobs:
           ls -lah FNFVSlice.apk
 
       - name: Save APK artifact
-        if: ${{ github.event.inputs.save-artifact }}
+        if: ${{ github.event.inputs.save-artifact || true }}
         uses: actions/upload-artifact@v4
         with:
           name: FNFVSlice-android
