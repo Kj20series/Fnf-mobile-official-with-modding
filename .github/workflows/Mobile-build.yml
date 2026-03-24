@@ -21,6 +21,8 @@ jobs:
 
   build-android:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     defaults:
       run:
         shell: bash
@@ -29,19 +31,8 @@ jobs:
       GRADLE_OPTS: "-Dorg.gradle.logging.level=debug"
 
     steps:
-      - name: Get checkout token
-        uses: actions/create-github-app-token@v1
-        id: app_token
-        with:
-          app-id: ${{ vars.APP_ID }}
-          private-key: ${{ secrets.APP_PEM }}
-          owner: ${{ github.repository_owner }}
-
       - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          token: ${{ steps.app_token.outputs.token }}
-          persist-credentials: false
 
       - name: Print system info
         run: |
