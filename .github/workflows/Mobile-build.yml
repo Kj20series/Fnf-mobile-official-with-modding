@@ -20,8 +20,7 @@ on:
 jobs:
 
   build-android:
-    runs-on: build-set
-    container: ghcr.io/funkincrew/build-dependencies:latest
+    runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash
@@ -39,7 +38,7 @@ jobs:
           owner: ${{ github.repository_owner }}
 
       - name: Checkout repo
-        uses: funkincrew/ci-checkout@v7.3.3
+        uses: actions/checkout@v4
         with:
           token: ${{ steps.app_token.outputs.token }}
           persist-credentials: false
@@ -96,12 +95,10 @@ jobs:
           echo "====== SDK CONTENTS ======"
           ls -la $ANDROID_SDK_ROOT
 
-      - name: Config haxelib
-        run: |
-          echo "====== CONFIGURING HAXELIB ======"
-          haxelib --never newrepo
-          echo "HAXEPATH=$(haxelib config)" >> "$GITHUB_ENV"
-          echo "Haxelib path: $(haxelib config)"
+      - name: Set up Haxe
+        uses: krdlab/setup-haxe@v1
+        with:
+          haxe-version: 4.3.4
 
       - name: Verify Haxe
         run: |
@@ -109,8 +106,13 @@ jobs:
           haxe --version
           echo "====== HAXELIB VERSION ======"
           haxelib version
-          echo "====== INSTALLED HAXELIBS ======"
-          haxelib list
+
+      - name: Config haxelib
+        run: |
+          echo "====== CONFIGURING HAXELIB ======"
+          haxelib --never newrepo
+          echo "HAXEPATH=$(haxelib config)" >> "$GITHUB_ENV"
+          echo "Haxelib path: $(haxelib config)"
 
       - name: Restore cached Haxe dependencies
         id: cache-hmm
@@ -123,7 +125,7 @@ jobs:
         if: ${{ steps.cache-hmm.outputs.cache-hit != 'true' }}
         run: |
           echo "====== INSTALLING HMM DEPENDENCIES ======"
-          git config --global 'url.https://x-access-token:${{ steps.app_token.outputs.token }}@github.com/.insteadOf' https://github.com/
+          haxelib --global install hmm
           git config --global advice.detachedHead false
           haxelib --global run hmm install
           echo "====== BUILDING HXCPP TOOLS ======"
@@ -134,7 +136,7 @@ jobs:
       - name: Restore hxcpp cache
         uses: actions/cache@v4
         with:
-          path: /usr/share/hxcpp
+          path: ~/.hxcpp
           key: haxe-hxcpp-${{ runner.os }}-android-${{ github.sha }}
           restore-keys: haxe-hxcpp-${{ runner.os }}-android-
 
