@@ -75,7 +75,7 @@ jobs:
           echo "====== INSTALLING BUILD TOOLS ======"
           sdkmanager --verbose --install "build-tools;34.0.0" "platforms;android-35"
           echo "====== INSTALLED SDK PACKAGES ======"
-          sdkmanager --list_installed
+          sdkmanager --list | head -30
 
       - name: Verify Android SDK
         run: |
@@ -127,7 +127,7 @@ jobs:
       - name: Restore hxcpp cache
         uses: actions/cache@v4
         with:
-          path: ~/.hxcpp
+          path: ~/hxcpp_cache
           key: haxe-hxcpp-${{ runner.os }}-android-${{ github.sha }}
           restore-keys: haxe-hxcpp-${{ runner.os }}-android-
 
@@ -171,8 +171,8 @@ jobs:
           find export/release/android -type f | sort
 
       - name: Save APK artifact
-        if: ${{ github.event.inputs.save-artifact || true }}
+        if: ${{ github.event.inputs.save-artifact != 'false' }}
         uses: actions/upload-artifact@v4
         with:
           name: FNFVSlice-android
-          path: export/release/android/bin/app/build/outputs/apk/debug/
+          path: export/release/android/bin/app/build/outputs/apk/release/
