@@ -1,72 +1,211 @@
-name: V-Slice Android Build
-on: [push, pull_request, workflow_dispatch]
+# Builds the game for Android with full verbose/debug output.
+
+name: Build Android (Debug)
+
+on:
+  workflow_dispatch:
+    inputs:
+      build-defines:
+        type: string
+        description: Build defines to use
+        default: '-DGITHUB_BUILD'
+      save-artifact:
+        type: boolean
+        description: Save the build artifact to Github Actions
+        default: true
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Source
-        uses: actions/checkout@v4
-        with:
-          submodules: 'recursive'
 
-      - name: Setup Java
+  build-android:
+    runs-on: build-set
+    container: ghcr.io/funkincrew/build-dependencies:latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      BUILD_DEFINES: ${{ github.event.inputs.build-defines || '-DGITHUB_BUILD' }}
+      GRADLE_OPTS: "-Dorg.gradle.logging.level=debug"
+
+    steps:
+      - name: Get checkout token
+        uses: actions/create-github-app-token@v1
+        id: app_token
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PEM }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Checkout repo
+        uses: funkincrew/ci-checkout@v7.3.3
+        with:
+          token: ${{ steps.app_token.outputs.token }}
+          persist-credentials: false
+
+      - name: Print system info
+        run: |
+          echo "====== SYSTEM INFO ======"
+          uname -a
+          echo "====== CPU ======"
+          nproc
+          echo "====== MEMORY ======"
+          free -h
+          echo "====== DISK ======"
+          df -h
+          echo "====== ENV VARS ======"
+          env | sort
+
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '17'
-      
-      - name: Setup Haxe
-        uses: FunkinCrew/ci-haxe@v3
-        with:
-          haxe-version: 4.3.7
 
-      - name: Setup Android SDK/NDK
+      - name: Verify Java
+        run: |
+          echo "====== JAVA VERSION ======"
+          java -version
+          echo "====== JAVA HOME ======"
+          echo $JAVA_HOME
+
+      - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-      
-      - name: Setup NDK
-        uses: nttld/setup-ndk@v1
+
+      - name: Install Android NDK
+        run: |
+          echo "====== INSTALLING NDK ======"
+          sdkmanager --verbose --install "ndk;25.2.9519653"
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/25.2.9519653" >> $GITHUB_ENV
+          echo "NDK installed at: $ANDROID_SDK_ROOT/ndk/25.2.9519653"
+
+      - name: Install Android build tools
+        run: |
+          echo "====== INSTALLING BUILD TOOLS ======"
+          sdkmanager --verbose --install "build-tools;34.0.0" "platforms;android-35"
+          echo "====== INSTALLED SDK PACKAGES ======"
+          sdkmanager --list_installed
+
+      - name: Verify Android SDK
+        run: |
+          echo "====== ANDROID SDK ROOT ======"
+          echo $ANDROID_SDK_ROOT
+          echo "====== ANDROID NDK HOME ======"
+          echo $ANDROID_NDK_HOME
+          echo "====== SDK CONTENTS ======"
+          ls -la $ANDROID_SDK_ROOT
+
+      - name: Config haxelib
+        run: |
+          echo "====== CONFIGURING HAXELIB ======"
+          haxelib --never newrepo
+          echo "HAXEPATH=$(haxelib config)" >> "$GITHUB_ENV"
+          echo "Haxelib path: $(haxelib config)"
+
+      - name: Verify Haxe
+        run: |
+          echo "====== HAXE VERSION ======"
+          haxe --version
+          echo "====== HAXELIB VERSION ======"
+          haxelib version
+          echo "====== INSTALLED HAXELIBS ======"
+          haxelib list
+
+      - name: Restore cached Haxe dependencies
+        id: cache-hmm
+        uses: actions/cache@v4
         with:
-          ndk-version: r25c
+          path: .haxelib
+          key: haxe-hmm-${{ runner.os }}-${{ hashFiles('**/hmm.json') }}
 
-      - name: Install Haxelibs
+      - name: Install Haxe dependencies
+        if: ${{ steps.cache-hmm.outputs.cache-hit != 'true' }}
         run: |
-          haxelib setup ~/haxelib
-          # Bumping to satisfy FlxDefines.hx requirement
-          haxelib install lime 8.0.2 --never
-          haxelib install openfl 9.2.2 --never
-          
-          # Official Repositories
-          haxelib git flixel https://github.com/HaxeFlixel/flixel.git --never
-          haxelib git flxanimate https://github.com/Dot-Stuff/flxanimate.git --never
-          haxelib git flxpartialsound https://github.com/FunkinCrew/FlxPartialSound.git --never
-          haxelib git funkin.vis https://github.com/FunkinCrew/funkVis.git --never
-          haxelib git hxvlc https://github.com/MAJigsaw77/hxvlc.git --never
-          haxelib git extension-androidtools https://github.com/LimeExtensions/extension-androidtools.git --never
-          
-          # Supporting Dependencies
-          haxelib install flixel-addons --never
-          haxelib install flixel-ui --never
-          haxelib install hxp --never
-          haxelib install hscript-iris --never
-          haxelib install polymod --never
-          haxelib install thx.core --never
-          haxelib git grig.audio https://github.com/osakared/grig.audio.git --never
+          echo "====== INSTALLING HMM DEPENDENCIES ======"
+          git config --global 'url.https://x-access-token:${{ steps.app_token.outputs.token }}@github.com/.insteadOf' https://github.com/
+          git config --global advice.detachedHead false
+          haxelib --global run hmm install
+          echo "====== BUILDING HXCPP TOOLS ======"
+          cd .haxelib/hxcpp/git/tools/hxcpp && haxe compile.hxml
+          echo "====== INSTALLED HAXELIBS AFTER HMM ======"
+          haxelib list
 
-      - name: Configure Lime
+      - name: Restore hxcpp cache
+        uses: actions/cache@v4
+        with:
+          path: /usr/share/hxcpp
+          key: haxe-hxcpp-${{ runner.os }}-android-${{ github.sha }}
+          restore-keys: haxe-hxcpp-${{ runner.os }}-android-
+
+      - name: Configure Lime for Android
         run: |
-          haxelib run lime config ANDROID_SDK $ANDROID_HOME
+          echo "====== CONFIGURING LIME FOR ANDROID ======"
+          haxelib run lime config ANDROID_SDK $ANDROID_SDK_ROOT
           haxelib run lime config ANDROID_NDK_ROOT $ANDROID_NDK_HOME
           haxelib run lime config JAVA_HOME $JAVA_HOME
-          haxelib run lime config ANDROID_SETUP true
+          echo "====== LIME CONFIG ======"
+          haxelib run lime config
 
-      - name: Final Build
+      - name: Decode keystore
         run: |
-          PROJECT_FILE=$(find . -maxdepth 2 -iname "project.xml" -print -quit)
-          haxelib run lime build "$PROJECT_FILE" android -final -64 -v
+          echo "====== DECODING KEYSTORE ======"
+          echo "${{ secrets.KEYSTORE_B64 }}" | base64 --decode > keystore.jks
+          echo "Keystore decoded successfully."
+          echo "====== KEYSTORE INFO ======"
+          keytool -list -v -keystore keystore.jks -storepass ${{ secrets.KEYSTORE_PASSWORD }} | head -20
 
-      - name: Upload APK
+      - name: Populate .env
+        run: |
+          echo "====== POPULATING .ENV ======"
+          touch .env
+          grep API_NG_APP_ID .env || echo API_NG_APP_ID=${{ secrets.API_NG_APP_ID }} >> .env
+          grep API_NG_ENC_KEY .env || echo API_NG_ENC_KEY=${{ secrets.API_NG_ENC_KEY }} >> .env
+          echo ".env populated."
+
+      - name: Print project structure
+        run: |
+          echo "====== PROJECT STRUCTURE ======"
+          ls -la
+          echo "====== SOURCE DIR ======"
+          ls -la source/ | head -40
+          echo "====== ASSETS DIR ======"
+          ls -la assets/ | head -40
+
+      - name: Build game (Android)
+        run: |
+          echo "====== STARTING ANDROID BUILD ======"
+          echo "Build defines: $BUILD_DEFINES"
+          haxelib run lime build android -v -release --times $BUILD_DEFINES
+          echo "====== BUILD COMPLETE ======"
+        timeout-minutes: 120
+
+      - name: List build output
+        run: |
+          echo "====== BUILD OUTPUT ======"
+          find export/release/android -type f | sort
+
+      - name: Sign APK
+        run: |
+          echo "====== SIGNING APK ======"
+          APK_PATH="export/release/android/bin/app/build/outputs/apk/release/app-release-unsigned.apk"
+          echo "Signing: $APK_PATH"
+          jarsigner \
+            -verbose \
+            -sigalg SHA256withRSA \
+            -digestalg SHA-256 \
+            -keystore keystore.jks \
+            -storepass ${{ secrets.KEYSTORE_PASSWORD }} \
+            -keypass ${{ secrets.KEY_PASSWORD }} \
+            $APK_PATH \
+            ${{ secrets.KEY_ALIAS }}
+          echo "====== ZIPALIGNING APK ======"
+          $ANDROID_SDK_ROOT/build-tools/34.0.0/zipalign -v 4 \
+            $APK_PATH \
+            FNFVSlice.apk
+          echo "====== FINAL APK INFO ======"
+          ls -lah FNFVSlice.apk
+
+      - name: Save APK artifact
+        if: ${{ github.event.inputs.save-artifact }}
         uses: actions/upload-artifact@v4
         with:
-          name: VSlice-Android-Release
-          path: export/android/bin/app/build/outputs/apk/release/*.apk
+          name: FNFVSlice-android
+          path: FNFVSlice.apk
