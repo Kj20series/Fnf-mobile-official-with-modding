@@ -43,23 +43,23 @@ class Project extends HXProject
   /**
    * The game's name. Used as the default window title.
    */
-  static final TITLE:String = "Friday Night Funkin'";
+  static final TITLE:String = "FNF': VSLICE";
 
   /**
    * The game's name on mobile. Used as the title for the game on the home screen.
    */
-  static final TITLE_MOBILE:String = "FNF";
+  static final TITLE_MOBILE:String = "FNF': VSLICE";
 
   /**
    * A package name used for identifying the app on various app stores.
    */
-  static final PACKAGE_NAME:String = "me.funkin.fnf";
+  static final PACKAGE_NAME:String = "com.fnf.vslice.mobile";
 
   /**
    * The name of the generated executable file.
    * For example, `"Funkin"` will create a file called `Funkin.exe`.
    */
-  static final EXECUTABLE_NAME:String = "Funkin";
+  static final EXECUTABLE_NAME:String = "FNFVSlice";
 
   /**
    * The relative location of the source code.
@@ -609,6 +609,4 @@ class Project extends HXProject
    */
   function configureApp()
   {
-    this.meta.title = isMobile() ? TITLE_MOBILE : TITLE;
-
-   
+    this.meta.title = isMobile() ? TITLE_MOBILE :
