@@ -39,27 +39,24 @@ jobs:
           distribution: zulu
           java-version: 11
 
-      # FIX 1 & 6: setup-android does NOT accept api-level/build-tools params.
-      # Install cmdline-tools only here, then install build-tools via sdkmanager below.
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          cmdline-tools-version: latest
-
-      # FIX 6: Explicitly install required build-tools via sdkmanager
-      - name: Install Android build tools
-        run: sdkmanager "build-tools;34.0.0" "platforms;android-34"
-
-      # FIX 2 & 3: Use $ANDROID_HOME (set by setup-android) instead of a
-      # custom path that nothing else knows about. NDK_HOME is set by setup-ndk below.
-      - name: Set Android environment variables
+      # ubuntu-latest already ships with the Android SDK at this path.
+      # Dropping android-actions/setup-android entirely avoids its internal
+      # sdkmanager call which fails with exit code 1 on v3.
+      - name: Set Android SDK environment variables
         run: |
-          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
-          echo "JAVA_HOME=$JAVA_HOME" >> $GITHUB_ENV
+          ANDROID_SDK="/usr/local/lib/android/sdk"
+          echo "ANDROID_HOME=$ANDROID_SDK"           >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK"       >> $GITHUB_ENV
+          echo "$ANDROID_SDK/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$ANDROID_SDK/platform-tools"           >> $GITHUB_PATH
+          echo "JAVA_HOME=$JAVA_HOME"                >> $GITHUB_ENV
 
-      # Accept Android licenses
-      - name: Accept Licenses
+      # Accept licenses first, then install exactly what Lime needs
+      - name: Accept Android licenses
         run: yes | sdkmanager --licenses
+
+      - name: Install Android build tools and platform
+        run: sdkmanager "build-tools;34.0.0" "platforms;android-34"
 
       # Setup Android NDK — this action exports ANDROID_NDK_HOME automatically
       - name: Setup NDK
