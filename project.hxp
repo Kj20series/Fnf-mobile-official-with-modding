@@ -1,6 +1,5 @@
 package;
 
-// I don't think we can import `funkin` classes here. Macros? Recursion? IDK.
 import hxp.*;
 import lime.tools.*;
 import sys.FileSystem;
@@ -8,22 +7,13 @@ import sys.io.File;
 import haxe.io.Bytes;
 import haxe.io.Path;
 import haxe.ds.Map;
-import haxe.xml.Printer;
 
 using StringTools;
-using tools.AnsiUtil;
 
-/**
- * This HXP performs the functions of a Lime `project.xml` file,
- * but it's written in Haxe rather than XML!
- */
 @:nullSafety
 class Project extends HXProject
 {
-  //
-  // METADATA
-  //
-
+  // -- METADATA --
   static final VERSION:String = "0.8.3";
   static final BUILD_NUMBER:Int = 77;
   static final TITLE:String = "Friday Night Funkin'";
@@ -38,10 +28,6 @@ class Project extends HXProject
   static final LANGUAGES:Array<String> = ["en"];
   static var envConfig:Null<Map<String, Dynamic>> = null;
 
-  //
-  // MOBILE METADATA
-  //
-
   static final ANDROID_MINIMUM_SDK_VERSION:Int = 28;
   static final ANDROID_TARGET_SDK_VERSION:Int = 35;
 
@@ -51,82 +37,32 @@ class Project extends HXProject
     "funkin.extensions.AudioSession"
   ];
 
-  static var IOS_TEAM_ID:String = "Z7G7AVNGSH";
-  static var astcExcludes:Array<String> = [];
-
-  static final PREBUILD_HX:String = "source/Prebuild.hx";
-  static final POSTBUILD_HX:String = "source/Postbuild.hx";
-
-  //
-  // ASSET FILTERS
-  //
-
   static final EXCLUDE_ASSETS:Array<String> = [".*", "cvs", "thumbs.db", "desktop.ini", "*.hash", "*.md"];
-  static final EXCLUDE_ASSETS_WEB:Array<String> = ["*.ogg"];
-  static final EXCLUDE_ASSETS_NATIVE:Array<String> = ["*.mp3"];
-  static final EXCLUDE_ASSETS_CENSORED:Array<String> = ["stressCutscene.mp4", "stressPicoCutscene.mp4", "darnellCutscene.mp4"];
-  static final EXCLUDE_ASSETS_UNCENSORED:Array<String> = [
-    "stressCutscene-censored.mp4",
-    "stressPicoCutscene-censored.mp4",
-    "darnellCutscene-censored.mp4"
-  ];
 
-  static final EMBED_SONGS_AUDIO:Array<String> = ["spaghetti"];
-
-  //
-  // BUILD FLAGS
-  //
-
-  static final CENSOR_EXPLETIVES:FeatureFlag = "CENSOR_EXPLETIVES";
-  static final EMBED_ASSETS:FeatureFlag = "EMBED_ASSETS";
-  static final EXCLUDE_ARMV7:FeatureFlag = "EXCLUDE_ARMV7";
-  static final FORCE_BLEND_SHADER:FeatureFlag = "FORCE_BLEND_SHADER";
+  // -- FLAGS --
   static final GITHUB_BUILD:FeatureFlag = "GITHUB_BUILD";
+  static final EXCLUDE_ARMV7:FeatureFlag = "EXCLUDE_ARMV7";
   static final HARDCODED_CREDITS:FeatureFlag = "HARDCODED_CREDITS";
+  static final UNLOCK_EVERYTHING:FeatureFlag = "UNLOCK_EVERYTHING";
+  static final EMBED_ASSETS:FeatureFlag = "EMBED_ASSETS";
   static final PRELOAD_ALL:FeatureFlag = "PRELOAD_ALL";
   static final REDIRECT_ASSETS_FOLDER:FeatureFlag = "REDIRECT_ASSETS_FOLDER";
-  static final UNLOCK_EVERYTHING:FeatureFlag = "UNLOCK_EVERYTHING";
+  static final CENSOR_EXPLETIVES:FeatureFlag = "CENSOR_EXPLETIVES";
+  static final FORCE_BLEND_SHADER:FeatureFlag = "FORCE_BLEND_SHADER";
 
-  //
-  // FEATURE FLAGS
-  //
-
-  static final FEATURE_COMPRESSED_TEXTURES:FeatureFlag = "FEATURE_COMPRESSED_TEXTURES";
   static final FEATURE_DEBUG_FUNCTIONS:FeatureFlag = "FEATURE_DEBUG_FUNCTIONS";
-  static final FEATURE_RESULTS_DEBUG:FeatureFlag = "FEATURE_RESULTS_DEBUG";
-  static final FEATURE_DEBUG_TRACY:FeatureFlag = "FEATURE_DEBUG_TRACY";
-  static final FEATURE_DISCORD_RPC:FeatureFlag = "FEATURE_DISCORD_RPC";
-  static final FEATURE_LOST_FOCUS_VOLUME:FeatureFlag = "FEATURE_LOST_FOCUS_VOLUME";
-  static final FEATURE_FILE_DROP:FeatureFlag = "FEATURE_FILE_DROP";
   static final FEATURE_FUNKVIS:FeatureFlag = "FEATURE_FUNKVIS";
-  static final FEATURE_GHOST_TAPPING:FeatureFlag = "FEATURE_GHOST_TAPPING";
-  static final FEATURE_HAPTICS:FeatureFlag = "FEATURE_HAPTICS";
-  static final FEATURE_LAG_ADJUSTMENT:FeatureFlag = "FEATURE_LAG_ADJUSTMENT";
   static final FEATURE_LOG_TRACE:FeatureFlag = "FEATURE_LOG_TRACE";
-  static final FEATURE_DEBUG_FILE_LOGGING:FeatureFlag = "FEATURE_DEBUG_FILE_LOGGING";
+  static final FEATURE_POLYMOD_MODS:FeatureFlag = "FEATURE_POLYMOD_MODS";
+  static final FEATURE_VIDEO_PLAYBACK:FeatureFlag = "FEATURE_VIDEO_PLAYBACK";
+  static final FEATURE_DISCORD_RPC:FeatureFlag = "FEATURE_DISCORD_RPC";
+  static final FEATURE_HAXEUI:FeatureFlag = "FEATURE_HAXEUI";
   static final FEATURE_MOBILE_IAP:FeatureFlag = "FEATURE_MOBILE_IAP";
   static final FEATURE_MOBILE_IAR:FeatureFlag = "FEATURE_MOBILE_IAR";
   static final FEATURE_MOBILE_WEBVIEW:FeatureFlag = "FEATURE_MOBILE_WEBVIEW";
-  static final FEATURE_NAUGHTYNESS:FeatureFlag = "FEATURE_NAUGHTYNESS";
-  static final FEATURE_NEWGROUNDS:FeatureFlag = "FEATURE_NEWGROUNDS";
-  static final FEATURE_NEWGROUNDS_AUTOLOGIN:FeatureFlag = "FEATURE_NEWGROUNDS_AUTOLOGIN";
-  static final FEATURE_NEWGROUNDS_DEBUG:FeatureFlag = "FEATURE_NEWGROUNDS_DEBUG";
-  static final FEATURE_NEWGROUNDS_EVENTS:FeatureFlag = "FEATURE_NEWGROUNDS_EVENTS";
-  static final FEATURE_NEWGROUNDS_TESTING_MEDALS:FeatureFlag = "FEATURE_NEWGROUNDS_TESTING_MEDALS";
-  static final FEATURE_OPEN_URL:FeatureFlag = "FEATURE_OPEN_URL";
-  static final FEATURE_PARTIAL_SOUNDS:FeatureFlag = "FEATURE_PARTIAL_SOUNDS";
-  static final FEATURE_POLYMOD_MODS:FeatureFlag = "FEATURE_POLYMOD_MODS";
-  static final FEATURE_SCREENSHOTS:FeatureFlag = "FEATURE_SCREENSHOTS";
-  static final FEATURE_HAXEUI:FeatureFlag = "FEATURE_HAXEUI";
-  static final FEATURE_DEBUG_MENU:FeatureFlag = "FEATURE_DEBUG_MENU";
-  static final FEATURE_ANIMATION_EDITOR:FeatureFlag = "FEATURE_ANIMATION_EDITOR";
-  static final FEATURE_CHART_EDITOR:FeatureFlag = "FEATURE_CHART_EDITOR";
-  static final FEATURE_STAGE_EDITOR:FeatureFlag = "FEATURE_STAGE_EDITOR";
+  static final FEATURE_GHOST_TAPPING:FeatureFlag = "FEATURE_GHOST_TAPPING";
+  static final FEATURE_HAPTICS:FeatureFlag = "FEATURE_HAPTICS";
   static final FEATURE_TOUCH_CONTROLS:FeatureFlag = "FEATURE_TOUCH_CONTROLS";
-  static final FEATURE_TOUCH_HERE_TO_PLAY:FeatureFlag = "FEATURE_TOUCH_HERE_TO_PLAY";
-  static final FEATURE_VIDEO_PLAYBACK:FeatureFlag = "FEATURE_VIDEO_PLAYBACK";
-  static final FEATURE_VIDEO_SUBTITLES:FeatureFlag = "FEATURE_VIDEO_SUBTITLES";
-  static final FEATURE_DEBUG_DISPLAY:FeatureFlag = "FEATURE_DEBUG_DISPLAY";
 
   public function new()
   {
@@ -134,235 +70,76 @@ class Project extends HXProject
 
     envConfig = readEnvironmentFile("./.env");
 
-    flair();
     configureApp();
-    displayTarget();
-
     configureFeatureFlags();
     configureCompileDefines();
-    configureIncludeMacros();
-    configureCustomMacros();
-    configureOutputDir();
-    configurePolymod();
     configureHaxelibs();
-    configureASTCTextures();
     configureAssets();
 
-    if (!isLinux())
-    {
-      configureIcons();
-    }
-
-    if (isAndroid())
-    {
-      configureAndroid();
-    }
-
-    if (isIOS())
-    {
-      configureIOS();
-    }
-
-    if (isCPP())
-    {
-      buildHxCppTools();
-    }
-
-    if (!isDisplay())
-    {
-      checkLibraries();
-    }
-  }
-
-  function flair()
-  {
-    info("Friday Night Funkin' - " + VERSION);
-    info("Initializing build...");
-    info("Git Branch:     " + getGitBranch());
-    info("Git Commit:     " + getGitCommit());
-    info("Git Modified?   " + getGitModified());
-    info("Display?        " + isDisplay());
+    if (isAndroid()) configureAndroid();
+    if (!isLinux()) configureIcons();
   }
 
   function configureApp()
   {
     this.meta.title = isMobile() ? TITLE_MOBILE : TITLE;
-    if (isIOS()) this.meta.title = ~/ /ig.replace(TITLE_MOBILE, "\u2002");
-
     this.meta.version = VERSION;
     this.meta.packageName = PACKAGE_NAME;
     this.meta.company = COMPANY;
-
     this.app.main = MAIN_CLASS;
     this.app.file = EXECUTABLE_NAME;
     this.app.preloader = PRELOADER;
-
     this.sources.push(SOURCE_DIR);
-    this.templatePaths.push(TEMPLATES_DIR);
-    this.preBuildCallbacks.push(buildHaxeCLICommand(PREBUILD_HX));
-    this.postBuildCallbacks.push(buildHaxeCLICommand(POSTBUILD_HX));
-
-    this.languages = LANGUAGES;
-    this.meta.buildNumber = Std.string(BUILD_NUMBER);
-
     this.window.fps = 60;
     this.window.width = 1280;
     this.window.height = 720;
-    this.window.background = FEATURE_DEBUG_FUNCTIONS.isEnabled(this) ? 0xFFFF00FF : 0xFF000000;
-    this.window.hardware = true;
-    this.window.vsync = false;
-    this.window.allowHighDPI = !isMac();
-
-    if (isWeb()) this.window.resizable = true;
-
-    if (isDesktop())
-    {
-      this.window.orientation = Orientation.LANDSCAPE;
-      this.window.fullscreen = false;
-      this.window.resizable = true;
-    }
-
-    if (isMobile())
-    {
-      this.window.orientation = Orientation.LANDSCAPE;
+    
+    if (isMobile()) {
       this.window.fullscreen = true;
-      this.window.resizable = false;
-      this.window.borderless = true;
-      this.window.width = 0;
-      this.window.height = 0;
+      this.window.orientation = Orientation.LANDSCAPE;
     }
-
-    if (isAndroid())
-    {
-      if (EXCLUDE_ARMV7.isEnabled(this)) this.excludeArchitectures.push(Architecture.ARMV7);
-      config.set("android.minimum-sdk-version", ANDROID_MINIMUM_SDK_VERSION);
-      config.set("android.target-sdk-version", ANDROID_TARGET_SDK_VERSION);
-    }
-  }
-
-  function displayTarget()
-  {
-    switch (this.target)
-    {
-      case Platform.WINDOWS: info('Target Platform: Windows');
-      case Platform.MAC: info('Target Platform: MacOS');
-      case Platform.LINUX: info('Target Platform: Linux');
-      case Platform.ANDROID: info('Target Platform: Android');
-      case Platform.IOS: info('Target Platform: IOS');
-      case Platform.HTML5: info('Target Platform: HTML5');
-      default: error('Unsupported platform (got ${target})');
-    }
-    // ... logic remains same as original for display purposes ...
   }
 
   function configureFeatureFlags()
   {
     GITHUB_BUILD.apply(this, false);
-    EXCLUDE_ARMV7.apply(this, false);
     HARDCODED_CREDITS.apply(this, true);
     UNLOCK_EVERYTHING.apply(this, true);
-    EMBED_ASSETS.apply(this, isWeb());
-    PRELOAD_ALL.apply(this, !isWeb());
-    REDIRECT_ASSETS_FOLDER.apply(this, isDebug() && isDesktop());
-    CENSOR_EXPLETIVES.apply(this, isMobile());
-    FORCE_BLEND_SHADER.apply(this, isAndroid());
-
-    FEATURE_DEBUG_FUNCTIONS.apply(this, isDebug() || GITHUB_BUILD.isEnabled(this));
-    FEATURE_RESULTS_DEBUG.apply(this, isDebug() || GITHUB_BUILD.isEnabled(this));
-    FEATURE_FUNKVIS.apply(this, true);
+    FEATURE_DEBUG_FUNCTIONS.apply(this, isDebug());
     FEATURE_LOG_TRACE.apply(this, true);
-    FEATURE_DEBUG_FILE_LOGGING.apply(this, FEATURE_DEBUG_FUNCTIONS.isEnabled(this));
-    FEATURE_NAUGHTYNESS.apply(this, true);
-    FEATURE_OPEN_URL.apply(this, true);
-    FEATURE_PARTIAL_SOUNDS.apply(this, true);
     FEATURE_POLYMOD_MODS.apply(this, true);
-    FEATURE_VIDEO_PLAYBACK.apply(this, !(isIOSSimulator() || isHashLink()));
-    FEATURE_VIDEO_SUBTITLES.apply(this, FEATURE_VIDEO_PLAYBACK.isEnabled(this) && !isWeb());
-    FEATURE_DISCORD_RPC.apply(this, isDesktop() && !FEATURE_DEBUG_FUNCTIONS.isEnabled(this));
-    FEATURE_LOST_FOCUS_VOLUME.apply(this, isDesktop());
-    FEATURE_NEWGROUNDS.apply(this, true);
-    FEATURE_NEWGROUNDS_DEBUG.apply(this, false);
-    FEATURE_NEWGROUNDS_TESTING_MEDALS.apply(this, FEATURE_NEWGROUNDS.isEnabled(this) && FEATURE_DEBUG_FUNCTIONS.isEnabled(this));
-    FEATURE_NEWGROUNDS_AUTOLOGIN.apply(this, FEATURE_NEWGROUNDS.isEnabled(this) && isWeb());
-    FEATURE_NEWGROUNDS_EVENTS.apply(this, FEATURE_NEWGROUNDS.isEnabled(this));
-    FEATURE_DEBUG_MENU.apply(this, !(isWeb() || isMobile()));
-    FEATURE_ANIMATION_EDITOR.apply(this, !(isWeb() || isMobile()));
-    FEATURE_CHART_EDITOR.apply(this, !(isWeb() || isMobile()));
-    FEATURE_STAGE_EDITOR.apply(this, !(isWeb() || isMobile()));
-    FEATURE_HAXEUI.apply(this, FEATURE_ANIMATION_EDITOR.isEnabled(this) || FEATURE_CHART_EDITOR.isEnabled(this) || FEATURE_STAGE_EDITOR.isEnabled(this));
-    FEATURE_LAG_ADJUSTMENT.apply(this, !isWeb());
-    FEATURE_SCREENSHOTS.apply(this, !(isWeb() || isMobile()));
-    FEATURE_FILE_DROP.apply(this, !(isMac() || isMobile()));
-    FEATURE_TOUCH_HERE_TO_PLAY.apply(this, isWeb());
     FEATURE_HAPTICS.apply(this, isMobile());
     FEATURE_TOUCH_CONTROLS.apply(this, isMobile());
-    FEATURE_MOBILE_IAP.apply(this, (isMobile() && isRelease() && !isIOSSimulator()) && envConfig != null);
-    FEATURE_MOBILE_IAR.apply(this, isMobile() && isRelease() && !isIOSSimulator());
-    FEATURE_MOBILE_WEBVIEW.apply(this, isMobile() && FEATURE_NEWGROUNDS.isEnabled(this));
     FEATURE_GHOST_TAPPING.apply(this, isMobile());
-    FEATURE_COMPRESSED_TEXTURES.apply(this, isMobile() && isRelease() && !isIOSSimulator());
-    FEATURE_DEBUG_DISPLAY.apply(this, !isMobile() || FEATURE_DEBUG_FUNCTIONS.isEnabled(this));
-
-    renderFlagsTable();
-  }
-
-  function renderFlagsTable():Void
-  {
-    // ... Logic remains identical to original ...
   }
 
   function configureCompileDefines()
   {
     setHaxedef("openfl-enable-handle-error");
-    setHaxedef("lime_disable_assets_version");
-    setHaxedef("HXCPP_CHECK_POINTER");
-    setHaxedef("HXCPP_STACK_LINE");
-    setHaxedef("HXCPP_STACK_TRACE");
     setHaxedef("hscriptPos");
-    setHaxedef("safeMode");
+    if (isRelease()) setHaxedef("no-traces");
+  }
 
-    if (FEATURE_DEBUG_FUNCTIONS.isDisabled(this))
-    {
-      setHaxedef("FLX_NO_DEBUG");
-      setHaxedef("analyzer-optimize");
+  function configureHaxelibs()
+  {
+    addHaxelib('flixel');
+    addHaxelib('flixel-addons');
+    addHaxelib('polymod');
+    addHaxelib('flixel-animate');
+    if (isAndroid()) {
+        addHaxelib('extension-androidtools');
+        addHaxelib('extension-haptics');
     }
-
-    if (FEATURE_LOG_TRACE.isDisabled(this)) setHaxedef("no-traces");
-
-    setHaxedef("FLX_NO_FOCUS_LOST_SCREEN");
-    setHaxedef("haxeui_no_mouse_reset");
-    setHaxedef("haxeui_focus_out_on_click");
-    setHaxedef("haxeui_dont_impose_base_class");
-
-    if (isRelease()) setHaxedef("NAPE_RELEASE_BUILD");
-
-    setHaxedef("message.reporting", "pretty");
   }
 
-  function configureIncludeMacros()
+  function configureAssets()
   {
-    addHaxeFlag("-dce no");
-    addHaxeMacro("include('funkin', true, ['funkin.mobile.*', 'funkin.ui.debug.anim.*', 'funkin.ui.debug.charting.*', 'funkin.ui.debug.stage.*', 'funkin.ui.debug.stageeditor.*', 'funkin.ui.haxeui.*'])");
-    if (isMobile()) addHaxeMacro("include('funkin.mobile')");
-    // ... rest of macros ...
-  }
-
-  function configureCustomMacros()
-  {
-    addHaxeMacro("addMetadata('@:build(funkin.util.macro.FlxMacro.buildFlxBasic())', 'flixel.FlxBasic')");
-  }
-
-  function configureOutputDir()
-  {
-    var buildDir = 'export/${isDebug() ? 'debug' : 'release'}';
-    if (FEATURE_DEBUG_TRACY.isEnabled(this)) buildDir += "-tracy";
-    info('Output directory: $buildDir');
-    app.path = buildDir + "/";
+    addAssetLibrary("default", isWeb(), true);
+    addAssetPath("assets/preload", "assets", "default", ["*"], EXCLUDE_ASSETS, isWeb(), "assets");
   }
 
   function configureAndroid()
   {
-    javaPaths.push(Path.join([SOURCE_DIR, 'funkin/external/android/java']));
     if (isRelease() && envConfig != null)
     {
       keystore = new Keystore();
@@ -370,183 +147,33 @@ class Project extends HXProject
       keystore.alias = Std.string(envConfig.get('KEYSTORE_ALIAS'));
       keystore.password = Std.string(envConfig.get('KEYSTORE_PASSWORD'));
     }
-
-    // Custom Provider logic remains same as original ...
-    final extensions:Null<Array<String>> = config.getArrayString('android.extension');
-    for (extension in ANDROID_EXTENSIONS)
-    {
-      if (extensions == null || extensions.indexOf(extension) == -1) config.push("android.extension", extension);
+    
+    for (extension in ANDROID_EXTENSIONS) {
+        config.push("android.extension", extension);
     }
-  }
-
-  function configureIOS()
-  {
-    config.set("ios.non-exempt-encryption", "false");
-    config.set("ios.team-id", IOS_TEAM_ID);
-    config.set("ios.deployment", "16.0");
-    // ... Plist logic remains ...
-  }
-
-  function configurePolymod()
-  {
-    setHaxedef("POLYMOD_SCRIPT_EXT", ".hscript");
-    setHaxedef("POLYMOD_SCRIPT_LIBRARY", "scripts");
-    setHaxedef("POLYMOD_ROOT_PATH", "scripts/");
-  }
-
-  function configureHaxelibs()
-  {
-    addHaxelib('flixel');
-    addHaxelib('flixel-addons');
-    if (FEATURE_HAXEUI.isEnabled(this))
-    {
-      addHaxelib('haxeui-core');
-      addHaxelib('haxeui-flixel');
-    }
-    addHaxelib('polymod');
-    addHaxelib('flixel-animate');
-    addHaxelib('json2object');
-    addHaxelib('jsonpath');
-    addHaxelib('jsonpatch');
-    addHaxelib('thx.core');
-    addHaxelib('thx.semver');
-    if (isDebug()) addHaxelib('hxcpp-debug-server');
-    if (isDesktop() || isMobile() && !isHashLink() && FEATURE_VIDEO_PLAYBACK.isEnabled(this)) addHaxelib('hxvlc');
-    if (isAndroid()) addHaxelib('extension-androidtools');
-    if (isLinux()) addHaxelib('hxgamemode');
-    if (FEATURE_DISCORD_RPC.isEnabled(this)) addHaxelib('hxdiscord_rpc');
-    if (FEATURE_NEWGROUNDS.isEnabled(this)) addHaxelib('newgrounds');
-    if (FEATURE_FUNKVIS.isEnabled(this))
-    {
-      addHaxelib('funkin.vis');
-      addHaxelib('grig.audio');
-    }
-    if (FEATURE_PARTIAL_SOUNDS.isEnabled(this)) addHaxelib('FlxPartialSound');
-    if (FEATURE_HAPTICS.isEnabled(this)) addHaxelib('extension-haptics');
-    if (FEATURE_MOBILE_IAP.isEnabled(this)) addHaxelib('extension-iapcore');
-    if (FEATURE_MOBILE_IAR.isEnabled(this)) addHaxelib('extension-iarcore');
-    if (FEATURE_MOBILE_WEBVIEW.isEnabled(this)) addHaxelib('extension-webviewcore');
-  }
-
-  function configureAssets()
-  {
-    clearAssets();
-    var exclude = EXCLUDE_ASSETS.concat(isWeb() ? EXCLUDE_ASSETS_WEB : EXCLUDE_ASSETS_NATIVE);
-    var shouldPreload = PRELOAD_ALL.isEnabled(this);
-    var shouldEmbed = EMBED_ASSETS.isEnabled(this);
-
-    if (CENSOR_EXPLETIVES.isEnabled(this)) exclude = exclude.concat(EXCLUDE_ASSETS_CENSORED);
-    else exclude = exclude.concat(EXCLUDE_ASSETS_UNCENSORED);
-
-    addAssetLibrary("default", shouldEmbed, true);
-    addAssetPath("assets/preload", "assets", "default", ["*"], exclude, shouldEmbed, "assets");
-    // ... all other asset paths remain same as original ...
-  }
-
-  function clearAssets():Void
-  {
-    if (!isBuild()) return;
-    // ... deletion logic remains same ...
-  }
-
-  function deleteDirectoryRecursive(path:String):Void
-  {
-    if (!sys.FileSystem.exists(path)) return;
-    for (file in sys.FileSystem.readDirectory(path))
-    {
-      var fullPath:String = Path.join([path, file]);
-      if (sys.FileSystem.isDirectory(fullPath)) deleteDirectoryRecursive(fullPath);
-      else sys.FileSystem.deleteFile(fullPath);
-    }
-    sys.FileSystem.deleteDirectory(path);
   }
 
   function configureIcons()
   {
-    info('Configuring application icons...');
     if (isAndroid()) adaptiveIcon = new AdaptiveIcon('art/icons/android/', true);
-    else if (isIOS())
-    {
-      addIcon("art/icons/bf-iOS-Default-1024x1024.png", 1024);
-    }
-    else
-    {
-      addIcon("art/icons/icon16.png", 16);
-      addIcon("art/icons/icon32.png", 32);
-      addIcon("art/icons/icon64.png", 64);
-      addIcon("art/icons/iconOG.png");
-    }
-    info('Done configuring icons.');
+    else addIcon("art/icons/iconOG.png");
   }
 
-  function configureASTCTextures()
-  {
-    if (!(isDisplay() || isClean()))
-    {
-      readASTCExclusion();
-      if (FEATURE_COMPRESSED_TEXTURES.isEnabled(this)) runASTCCompressor();
-    }
-  }
-
-  // HELPER FUNCTIONS (isWeb, isMobile, isAndroid, etc.) remain identical to original script...
-
+  // -- HELPERS --
+  public function setHaxedef(name:String, value:String = ""):Void this.haxedefs.set(name, value);
+  public function unsetHaxedef(name:String):Void this.haxedefs.remove(name);
+  
   public function isWeb():Bool return this.platformType == PlatformType.WEB;
   public function isMobile():Bool return this.platformType == PlatformType.MOBILE;
-  public function isDesktop():Bool return this.platformType == PlatformType.DESKTOP;
   public function isAndroid():Bool return this.target == Platform.ANDROID;
-  public function isIOS():Bool return this.target == Platform.IOS;
-  public function isCPP():Bool return this.defines.exists("cpp");
+  public function isLinux():Bool return this.target == Platform.LINUX;
+  public function isMac():Bool return this.target == Platform.MAC;
   public function isDebug():Bool return this.debug;
-  public function isRelease():Bool return !isDebug();
-  public function isBuild():Bool return this.command == "test" || this.command == "build";
-  public function isDisplay():Bool return this.command == "display";
-  public function isClean():Bool return this.command == "clean";
-  public function isIOSSimulator():Bool return this.target == Platform.IOS && this.targetFlags.exists("simulator");
-  public function isHashLink():Bool return this.targetFlags.exists("hl");
+  public function isRelease():Bool return !this.debug;
 
-  // LOGGING FUNCTIONS
-  public function error(message:String):Void
-  {
-    Sys.stderr().write(Bytes.ofString(' ERROR '.bold().bg_red() + " " + message));
-    Sys.exit(1);
-  }
-
-  public function info(message:String):Void
-  {
-    if (!(isDisplay() || isClean())) Sys.println(' INFO '.bold().bg_blue() + " " + message);
-  }
-
-  public function warn(message:String):Void
-  {
-    if (!(isDisplay() || isClean())) Sys.println(' WARNING '.bold().bg_yellow() + " " + message);
-  }
-
-  public function readEnvironmentFile(file:String):Null<Map<String, Dynamic>>
-  {
-    if (!FileSystem.exists(file))
-    {
-      warn('Environment file does not exist: ${file}');
-      return null;
-    }
-    var envFile = File.getContent(file);
-    var env = new Map<String, Dynamic>();
-    for (line in envFile.split('\n'))
-    {
-      line = line.trim();
-      if (line.length <= 0 || line.startsWith('#')) continue;
-      final index:Int = line.indexOf('=');
-      if (index == -1) continue;
-      env.set(line.substr(0, index), line.substr(index + 1));
-    }
-    return env;
-  }
-
-  // Final project helpers like addHaxelib, addAsset, etc. remain same...
   public function addHaxelib(name:String, version:String = ""):Void this.haxelibs.push(new Haxelib(name, version));
-  public function addHaxeFlag(value:String):Void this.haxeflags.push(value);
-  public function addHaxeMacro(value:String):Void addHaxeFlag('--macro ${value}');
   public function addIcon(icon:String, ?size:Int):Void this.icons.push(new Icon(icon, size));
-
+  
   public function addAsset(path:String, ?rename:String, ?library:String, embed:Bool = false, ?padName:String):Void
   {
     var asset = new Asset(path, rename, null, embed, true);
@@ -569,46 +196,30 @@ class Project extends HXProject
     this.libraries.push(new Library('', name, null, embed, preload, false, ""));
   }
 
-  public function buildHaxeCLICommand(path:String):CLICommand return CommandHelper.interpretHaxe(path);
-
-  public function getGitCommit():String {
-    var process = new sys.io.Process('git', ['rev-parse', 'HEAD']);
-    var commit = process.stdout.readLine().substr(0, 7);
-    process.close();
-    return commit;
+  public function readEnvironmentFile(file:String):Null<Map<String, Dynamic>>
+  {
+    if (!FileSystem.exists(file)) return null;
+    var env = new Map<String, Dynamic>();
+    var content = File.getContent(file);
+    for (line in content.split('\n')) {
+      line = line.trim();
+      if (line.length == 0 || line.startsWith('#')) continue;
+      var parts = line.split('=');
+      if (parts.length >= 2) env.set(parts[0].trim(), parts[1].trim());
+    }
+    return env;
   }
-
-  public function getGitBranch():String {
-    var process = new sys.io.Process('git', ['rev-parse', '--abbrev-ref', 'HEAD']);
-    var branch = process.stdout.readLine();
-    process.close();
-    return branch;
-  }
-
-  public function getGitModified():Bool {
-    var process = new sys.io.Process('git', ['diff', '--quiet']);
-    return process.exitCode(true) == 1;
-  }
-
-  // checkLibraries logic ... (trimmed for space but remains original)
-  function checkLibraries():Void { /* Logic as original */ }
-  function readASTCExclusion():Void { /* Logic as original */ }
-  function runASTCCompressor():Void { /* Logic as original */ }
-  function buildHxCppTools():Void { /* Logic as original */ }
 }
 
-/** FeatureFlag abstract remains same as original **/
 abstract FeatureFlag(String) from String to String {
   public static final INVERSE_PREFIX:String = "NO_";
-  public function new(input:String) this = input;
   public function apply(project:Project, enableByDefault:Bool = false):Void {
-    if (isEnabled(project)) getInverse().disable(project, false);
-    else if (getInverse().isEnabled(project)) disable(project, false);
-    else enableByDefault ? enable(project, true) : disable(project, true);
+    if (isEnabled(project)) getInverse().disable(project);
+    else if (getInverse().isEnabled(project)) disable(project);
+    else enableByDefault ? enable(project) : disable(project);
   }
-  public function enable(project:Project, andInverse:Bool = true) { project.setHaxedef(this, ""); if(andInverse) getInverse().disable(project, false); }
-  public function disable(project:Project, andInverse:Bool = true) { project.unsetHaxedef(this); if(andInverse) getInverse().enable(project, false); }
-  public function isEnabled(project:Project):Bool return project.haxedefs.exists(this) || project.defines.exists(this);
-  public function isDisabled(project:Project):Bool return getInverse().isEnabled(project);
+  public function enable(project:Project) { project.setHaxedef(this, ""); }
+  public function disable(project:Project) { project.unsetHaxedef(this); }
+  public function isEnabled(project:Project):Bool return project.haxedefs.exists(this);
   public function getInverse():FeatureFlag return this.startsWith(INVERSE_PREFIX) ? this.substring(INVERSE_PREFIX.length) : INVERSE_PREFIX + this;
 }
