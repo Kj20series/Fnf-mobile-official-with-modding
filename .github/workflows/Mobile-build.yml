@@ -28,16 +28,21 @@ jobs:
         with:
           haxe-version: 4.3.4
 
-      # Install Neko and all system headers needed to compile Lime's bundled
-      # native libs (OpenAL ALSA + PulseAudio backends). Doing this in one
-      # step avoids running apt-get update multiple times.
+      # FIXED: Added X11 development headers to fix the "X11/Xlib.h: No such file" error
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             neko \
             libasound2-dev \
-            libpulse-dev
+            libpulse-dev \
+            libx11-dev \
+            libxext-dev \
+            libxinerama-dev \
+            libxrandr-dev \
+            libxrender-dev \
+            libgl1-mesa-dev \
+            libglu1-mesa-dev
 
       # Setup Java (required for Android)
       - name: Setup Java
@@ -46,9 +51,7 @@ jobs:
           distribution: zulu
           java-version: 17
 
-      # ubuntu-latest already ships with the Android SDK at this path.
-      # Dropping android-actions/setup-android entirely avoids its internal
-      # sdkmanager call which fails with exit code 1 on v3.
+      # Set Android SDK environment variables
       - name: Set Android SDK environment variables
         run: |
           ANDROID_SDK="/usr/local/lib/android/sdk"
@@ -87,9 +90,7 @@ jobs:
       - name: Install dependencies
         run: haxelib run hmm install
 
-      # hxcpp is installed as a git/source version by hmm. Only step 1 of the
-      # bootstrap is needed for API >= 330 (which Funkin uses). Step 2 (neko build.n)
-      # only exists on API < 330 and will throw "Module not found : build.n" here.
+      # Bootstrap hxcpp
       - name: Bootstrap hxcpp
         run: |
           HXCPP_PATH=$(haxelib path hxcpp | head -1)
@@ -97,15 +98,12 @@ jobs:
           haxe compile.hxml
 
       # Rebuild Lime's native .ndll against the runner's actual Neko build.
-      # Without this the pre-built .ndll mismatches the apt Neko and throws
-      # "Primitive not found : lime@lime_system_get_hint(1)".
       - name: Rebuild Lime for Linux host
         run: haxelib run lime rebuild lime linux
 
       # Setup Lime and Android paths
       - name: Setup Lime
         run: |
-          # Pipe 'y' so the interactive prompt doesn't hang the runner
           echo y | haxelib run lime setup
           haxelib run lime config ANDROID_SDK $ANDROID_SDK_ROOT
           haxelib run lime config ANDROID_NDK_ROOT $ANDROID_NDK_HOME
