@@ -37,7 +37,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: zulu
-          java-version: 11
+          java-version: 17
 
       # ubuntu-latest already ships with the Android SDK at this path.
       # Dropping android-actions/setup-android entirely avoids its internal
