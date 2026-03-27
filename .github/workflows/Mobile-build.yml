@@ -45,11 +45,11 @@ jobs:
       - name: Set Android SDK environment variables
         run: |
           ANDROID_SDK="/usr/local/lib/android/sdk"
-          echo "ANDROID_HOME=$ANDROID_SDK"           >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK"       >> $GITHUB_ENV
+          echo "ANDROID_HOME=$ANDROID_SDK"             >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK"         >> $GITHUB_ENV
           echo "$ANDROID_SDK/cmdline-tools/latest/bin" >> $GITHUB_PATH
           echo "$ANDROID_SDK/platform-tools"           >> $GITHUB_PATH
-          echo "JAVA_HOME=$JAVA_HOME"                >> $GITHUB_ENV
+          echo "JAVA_HOME=$JAVA_HOME"                  >> $GITHUB_ENV
 
       # Accept licenses first, then install exactly what Lime needs
       - name: Accept Android licenses
@@ -74,17 +74,27 @@ jobs:
         run: |
           haxelib --global git haxelib https://github.com/FunkinCrew/haxelib.git
           haxelib --global git hmm https://github.com/FunkinCrew/hmm.git
-          # FIX 4: --global is an install-only flag; run does not accept it
           haxelib run hmm setup
 
       # Install dependencies from hmm.json
       - name: Install dependencies
         run: haxelib run hmm install
 
-      # Rebuild Lime's native library (.ndll) against the runner's actual Neko
-      # installation BEFORE calling any lime commands. Without this, lime runs
-      # under the pre-built ndll which was compiled against a different Neko
-      # version, causing "Primitive not found : lime@lime_system_get_hint(1)".
+      # hxcpp is installed as a git/source version by hmm and must be
+      # bootstrapped before any other tool (lime rebuild, build, etc.) can
+      # invoke it. Skipping this causes "Can't continue without hxcpp.n"
+      # on every subsequent step that touches native compilation.
+      - name: Bootstrap hxcpp
+        run: |
+          HXCPP_PATH=$(haxelib path hxcpp | head -1)
+          cd "$HXCPP_PATH/tools/hxcpp"
+          haxe compile.hxml
+          cd "$HXCPP_PATH/project"
+          neko build.n
+
+      # Rebuild Lime's native .ndll against the runner's actual Neko build.
+      # Without this the pre-built .ndll mismatches the apt Neko and throws
+      # "Primitive not found : lime@lime_system_get_hint(1)".
       - name: Rebuild Lime for Linux host
         run: haxelib run lime rebuild lime linux
 
@@ -112,7 +122,7 @@ jobs:
       - name: Build APK
         run: haxelib run lime build android -debug -Dci
 
-      # FIX 7: Correct export path for Funkin debug APK output
+      # Correct export path for Funkin debug APK output
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
