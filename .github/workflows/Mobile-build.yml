@@ -80,14 +80,12 @@ jobs:
       - name: Install dependencies
         run: haxelib run hmm install
 
+      # We keep this because it compiles the 'hxcpp' compiler tool itself
       - name: Bootstrap hxcpp
         run: |
           HXCPP_PATH=$(haxelib path hxcpp | head -1)
           cd "$HXCPP_PATH/tools/hxcpp"
           haxe compile.hxml
-
-      - name: Rebuild Lime for Linux host
-        run: haxelib run lime rebuild lime linux
 
       - name: Setup Lime
         run: |
@@ -97,14 +95,8 @@ jobs:
           printf "n\ny\n" | haxelib run lime setup
           printf "y\n" | haxelib run lime setup android
 
-      - name: Clean build
-        run: haxelib run lime clean android
-
-      - name: Rebuild hxcpp
-        run: haxelib run lime rebuild hxcpp android
-
-      - name: Rebuild extensions
-        run: haxelib run lime rebuild extension-androidtools android
+      # We removed 'rebuild lime linux', 'rebuild hxcpp android', and 'rebuild extensions'
+      # to see if 'lime build android' can handle them automatically.
 
       - name: Build APK
         run: haxelib run lime build android -debug -Dci
