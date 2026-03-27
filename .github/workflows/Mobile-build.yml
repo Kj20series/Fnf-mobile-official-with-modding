@@ -81,10 +81,17 @@ jobs:
       - name: Install dependencies
         run: haxelib run hmm install
 
+      # Rebuild Lime's native library (.ndll) against the runner's actual Neko
+      # installation BEFORE calling any lime commands. Without this, lime runs
+      # under the pre-built ndll which was compiled against a different Neko
+      # version, causing "Primitive not found : lime@lime_system_get_hint(1)".
+      - name: Rebuild Lime for Linux host
+        run: haxelib run lime rebuild lime linux
+
       # Setup Lime and Android paths
       - name: Setup Lime
         run: |
-          # FIX 5: Pipe 'y' so the interactive prompt doesn't hang the runner
+          # Pipe 'y' so the interactive prompt doesn't hang the runner
           echo y | haxelib run lime setup
           haxelib run lime config ANDROID_SDK $ANDROID_SDK_ROOT
           haxelib run lime config ANDROID_NDK_ROOT $ANDROID_NDK_HOME
