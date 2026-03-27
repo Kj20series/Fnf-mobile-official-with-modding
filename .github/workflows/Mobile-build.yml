@@ -89,6 +89,10 @@ jobs:
           cd "$HXCPP_PATH/tools/hxcpp"
           haxe compile.hxml
 
+      # Install system headers required to compile Lime's bundled OpenAL (ALSA backend).
+      - name: Install ALSA dev headers
+        run: sudo apt-get install -y libasound2-dev
+
       # Rebuild Lime's native .ndll against the runner's actual Neko build.
       # Without this the pre-built .ndll mismatches the apt Neko and throws
       # "Primitive not found : lime@lime_system_get_hint(1)".
