@@ -1,6 +1,5 @@
 name: Build FNF VSlice Mobile APK
 
-# Trigger only on pushes to main branch, plus manual workflow trigger
 on:
   push:
     branches:
@@ -14,22 +13,17 @@ jobs:
       NDK_VERSION: r21d
 
     steps:
-      # Checkout repo
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Init submodules (VERY IMPORTANT for V-Slice)
       - name: Init submodules
         run: git submodule update --init --recursive
 
-      # Setup Haxe
       - name: Setup Haxe
         uses: krdlab/setup-haxe@v1
         with:
           haxe-version: 4.3.4
 
-      # FIXED: Added g++-multilib and gcc-multilib to fix "bits/libc-header-start.h" error
-      # Also kept X11 headers to fix the previous "X11/Xlib.h" error
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -47,14 +41,12 @@ jobs:
             g++-multilib \
             gcc-multilib
 
-      # Setup Java (required for Android)
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: zulu
           java-version: 17
 
-      # Set Android SDK environment variables
       - name: Set Android SDK environment variables
         run: |
           ANDROID_SDK="/usr/local/lib/android/sdk"
@@ -64,99 +56,60 @@ jobs:
           echo "$ANDROID_SDK/platform-tools"           >> $GITHUB_PATH
           echo "JAVA_HOME=$JAVA_HOME"                  >> $GITHUB_ENV
 
-      # Accept licenses first, then install exactly what Lime needs
       - name: Accept Android licenses
         run: yes | sdkmanager --licenses
 
       - name: Install Android build tools and platform
         run: sdkmanager "build-tools;34.0.0" "platforms;android-34"
 
-      # Setup Android NDK — this action exports ANDROID_NDK_HOME automatically
       - name: Setup NDK
         uses: nttld/setup-ndk@v1
         id: setup-ndk
         with:
           ndk-version: ${{ env.NDK_VERSION }}
 
-      # Capture the NDK path that nttld/setup-ndk actually installed to
       - name: Set NDK environment variable
         run: echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
 
-      # Setup Funkin patched haxelib + hmm
       - name: Setup HMM
         run: |
           haxelib --global git haxelib https://github.com/FunkinCrew/haxelib.git
           haxelib --global git hmm https://github.com/FunkinCrew/hmm.git
           haxelib run hmm setup
 
-      # Install dependencies from hmm.json
       - name: Install dependencies
         run: haxelib run hmm install
 
-      # Bootstrap hxcpp
       - name: Bootstrap hxcpp
         run: |
           HXCPP_PATH=$(haxelib path hxcpp | head -1)
           cd "$HXCPP_PATH/tools/hxcpp"
           haxe compile.hxml
 
-      # Rebuild Lime's native .ndll against the runner's actual Neko build.
       - name: Rebuild Lime for Linux host
         run: haxelib run lime rebuild lime linux
 
-      # Setup Lime and Android paths
+      # FIXED: Added "lime setup android" to register the target correctly
       - name: Setup Lime
         run: |
           echo y | haxelib run lime setup
-          haxelib run lime config ANDROID_SDK $ANDROID_SDK_ROOT
+          haxelib run lime setup android $ANDROID_HOME $ANDROID_NDK_HOME $JAVA_HOME
+          haxelib run lime config ANDROID_SDK $ANDROID_HOME
           haxelib run lime config ANDROID_NDK_ROOT $ANDROID_NDK_HOME
           haxelib run lime config JAVA_HOME $JAVA_HOME
 
-      # Clean (IMPORTANT for package name changes)
       - name: Clean build
         run: haxelib run lime clean android
 
-      # Rebuild native libraries for the Android target
       - name: Rebuild hxcpp
         run: haxelib run lime rebuild hxcpp android
 
       - name: Rebuild extensions
         run: haxelib run lime rebuild extension-androidtools android
 
-      # Build APK
       - name: Build APK
         run: haxelib run lime build android -debug -Dci
 
-      # Correct export path for Funkin debug APK output
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: FNF-VSlice-Modded
-          path: export/android/bin/app/build/outputs/apk/debug/*.apk
-      # Setup Lime and Android paths
-      - name: Setup Lime
-        run: |
-          echo y | haxelib run lime setup
-          haxelib run lime config ANDROID_SDK $ANDROID_SDK_ROOT
-          haxelib run lime config ANDROID_NDK_ROOT $ANDROID_NDK_HOME
-          haxelib run lime config JAVA_HOME $JAVA_HOME
-
-      # Clean (IMPORTANT for package name changes)
-      - name: Clean build
-        run: haxelib run lime clean android
-
-      # Rebuild native libraries
-      - name: Rebuild hxcpp
-        run: haxelib run lime rebuild hxcpp android
-
-      - name: Rebuild extensions
-        run: haxelib run lime rebuild extension-androidtools android
-
-      # Build APK
-      - name: Build APK
-        run: haxelib run lime build android -debug -Dci
-
-      # Correct export path for Funkin debug APK output
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
