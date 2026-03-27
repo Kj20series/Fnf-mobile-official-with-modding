@@ -80,17 +80,14 @@ jobs:
       - name: Install dependencies
         run: haxelib run hmm install
 
-      # hxcpp is installed as a git/source version by hmm and must be
-      # bootstrapped before any other tool (lime rebuild, build, etc.) can
-      # invoke it. Skipping this causes "Can't continue without hxcpp.n"
-      # on every subsequent step that touches native compilation.
+      # hxcpp is installed as a git/source version by hmm. Only step 1 of the
+      # bootstrap is needed for API >= 330 (which Funkin uses). Step 2 (neko build.n)
+      # only exists on API < 330 and will throw "Module not found : build.n" here.
       - name: Bootstrap hxcpp
         run: |
           HXCPP_PATH=$(haxelib path hxcpp | head -1)
           cd "$HXCPP_PATH/tools/hxcpp"
           haxe compile.hxml
-          cd "$HXCPP_PATH/project"
-          neko build.n
 
       # Rebuild Lime's native .ndll against the runner's actual Neko build.
       # Without this the pre-built .ndll mismatches the apt Neko and throws
