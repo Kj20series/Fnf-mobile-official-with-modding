@@ -18,7 +18,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Init submodules (VERY IMPORTANT)
+      # Init submodules (VERY IMPORTANT for V-Slice)
       - name: Init submodules
         run: git submodule update --init --recursive
 
@@ -28,7 +28,8 @@ jobs:
         with:
           haxe-version: 4.3.4
 
-      # FIXED: Added X11 development headers to fix the "X11/Xlib.h: No such file" error
+      # FIXED: Added g++-multilib and gcc-multilib to fix "bits/libc-header-start.h" error
+      # Also kept X11 headers to fix the previous "X11/Xlib.h" error
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -42,7 +43,9 @@ jobs:
             libxrandr-dev \
             libxrender-dev \
             libgl1-mesa-dev \
-            libglu1-mesa-dev
+            libglu1-mesa-dev \
+            g++-multilib \
+            gcc-multilib
 
       # Setup Java (required for Android)
       - name: Setup Java
@@ -101,6 +104,35 @@ jobs:
       - name: Rebuild Lime for Linux host
         run: haxelib run lime rebuild lime linux
 
+      # Setup Lime and Android paths
+      - name: Setup Lime
+        run: |
+          echo y | haxelib run lime setup
+          haxelib run lime config ANDROID_SDK $ANDROID_SDK_ROOT
+          haxelib run lime config ANDROID_NDK_ROOT $ANDROID_NDK_HOME
+          haxelib run lime config JAVA_HOME $JAVA_HOME
+
+      # Clean (IMPORTANT for package name changes)
+      - name: Clean build
+        run: haxelib run lime clean android
+
+      # Rebuild native libraries for the Android target
+      - name: Rebuild hxcpp
+        run: haxelib run lime rebuild hxcpp android
+
+      - name: Rebuild extensions
+        run: haxelib run lime rebuild extension-androidtools android
+
+      # Build APK
+      - name: Build APK
+        run: haxelib run lime build android -debug -Dci
+
+      # Correct export path for Funkin debug APK output
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FNF-VSlice-Modded
+          path: export/android/bin/app/build/outputs/apk/debug/*.apk
       # Setup Lime and Android paths
       - name: Setup Lime
         run: |
