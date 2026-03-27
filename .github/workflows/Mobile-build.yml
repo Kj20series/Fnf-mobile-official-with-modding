@@ -28,9 +28,16 @@ jobs:
         with:
           haxe-version: 4.3.4
 
-      # Install Neko
-      - name: Install Neko
-        run: sudo apt-get update && sudo apt-get install -y neko
+      # Install Neko and all system headers needed to compile Lime's bundled
+      # native libs (OpenAL ALSA + PulseAudio backends). Doing this in one
+      # step avoids running apt-get update multiple times.
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            neko \
+            libasound2-dev \
+            libpulse-dev
 
       # Setup Java (required for Android)
       - name: Setup Java
@@ -88,10 +95,6 @@ jobs:
           HXCPP_PATH=$(haxelib path hxcpp | head -1)
           cd "$HXCPP_PATH/tools/hxcpp"
           haxe compile.hxml
-
-      # Install system headers required to compile Lime's bundled OpenAL (ALSA backend).
-      - name: Install ALSA dev headers
-        run: sudo apt-get install -y libasound2-dev
 
       # Rebuild Lime's native .ndll against the runner's actual Neko build.
       # Without this the pre-built .ndll mismatches the apt Neko and throws
