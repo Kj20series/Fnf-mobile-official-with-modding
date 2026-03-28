@@ -16,29 +16,11 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
-      - name: Checkout or create actions branch
+      - name: Clone and copy mobile controls
         run: |
-          git checkout actions 2>/dev/null || git checkout -b actions
-
-      - name: Clone mobile controls repo
-        run: git clone https://github.com/ArkoseLabsOfficial/mobile-controls-dev.git mobile-controls-tmp
-
-      - name: Copy files into correct locations
-        run: |
-          mkdir -p source/mobile
-          cp -r mobile-controls-tmp/src/mobile/. source/mobile/
-
-          mkdir -p assets/mobile
-          cp -r mobile-controls-tmp/assets/mobile/. assets/mobile/
-
-          cp mobile-controls-tmp/include.xml include.xml
-          cp mobile-controls-tmp/libs.hxml libs.hxml
-
-          # Patch Project.xml with mobile source path if not already present
-          if ! grep -q 'source/mobile' Project.xml; then
-            sed -i 's|<source path="source" />|<source path="source" />\n\t<source path="source/mobile" />|' Project.xml
-          fi
-
+          git clone https://github.com/ArkoseLabsOfficial/mobile-controls-dev.git mobile-controls-tmp
+          rm -rf mobile-controls-tmp/.git
+          cp -r mobile-controls-tmp/. ./
           rm -rf mobile-controls-tmp
 
       - name: Configure git
@@ -46,8 +28,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Commit and push to actions branch
+      - name: Commit and push
         run: |
           git add .
           git diff --staged --quiet || git commit -m "Import mobile controls from ArkoseLabsOfficial"
-          git push origin actions
+          git push origin main
