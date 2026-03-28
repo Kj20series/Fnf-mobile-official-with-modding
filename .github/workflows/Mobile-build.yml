@@ -84,8 +84,7 @@ jobs:
 
       - name: Patch project.hxp with mobile source path
         run: |
-          sed -i 's|this.sources.push(SOURCE_DIR);|this.sources.push(SOURCE_DIR);
-    this.sources.push("source/mobile");|' project.hxp
+          sed -i 's|this.sources.push(SOURCE_DIR);|this.sources.push(SOURCE_DIR);\n    this.sources.push("source\/mobile");|' project.hxp
 
       - name: Clean build
         run: haxelib run lime clean android
