@@ -30,7 +30,10 @@ jobs:
           sudo apt-get install -y neko libasound2-dev libpulse-dev libx11-dev \
             libxext-dev libxinerama-dev libxrandr-dev libxrender-dev \
             libgl1-mesa-dev libglu1-mesa-dev g++-multilib gcc-multilib \
-            libdbus-1-dev libxcursor-dev
+            libdbus-1-dev libxcursor-dev libxi-dev libxss-dev \
+            libxinerama-dev libxxf86vm-dev libxrandr-dev libxv-dev \
+            libwayland-dev libwayland-egl-backend-dev libegl-dev \
+            libibus-1.0-dev fcitx-libs-dev
 
       - name: Setup Java
         uses: actions/setup-java@v4
