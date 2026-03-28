@@ -27,6 +27,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
+          # Core packages - must succeed
           sudo apt-get install -y \
             neko \
             g++-multilib gcc-multilib \
@@ -48,12 +49,14 @@ jobs:
             libglu1-mesa-dev \
             libegl1-mesa-dev \
             libwayland-dev \
-            libwayland-egl-backend-dev \
             libibus-1.0-dev \
-            fcitx-libs-dev \
             libsndio-dev \
             libdrm-dev \
-            libgbm-dev \
+            libgbm-dev
+          # Optional packages - may not exist on all Ubuntu versions
+          sudo apt-get install -y \
+            libwayland-egl-backend-dev \
+            fcitx-libs-dev \
             libmirclient-dev || true
 
       - name: Setup Java
