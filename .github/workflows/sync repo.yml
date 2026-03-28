@@ -1,10 +1,8 @@
 name: Sync with FNF Upstream
 
 on:
-  # Run automatically every day at midnight to catch new releases
   schedule:
     - cron: '0 0 * * *'
-  # Also allow manual trigger
   workflow_dispatch:
 
 jobs:
@@ -15,7 +13,6 @@ jobs:
       - name: Checkout your repo
         uses: actions/checkout@v4
         with:
-          # Use a PAT so the workflow can push back to your repo
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
@@ -30,14 +27,14 @@ jobs:
       - name: Fetch upstream
         run: git fetch upstream
 
-      - name: Merge upstream main into your main
+      - name: Merge upstream main into actions branch
         run: |
-          git checkout main
-          # --no-edit accepts the default merge commit message automatically
+          # Create the actions branch if it doesn't exist yet
+          git checkout actions 2>/dev/null || git checkout -b actions
           git merge upstream/main --no-edit --strategy-option=theirs
 
       - name: Update submodules
         run: git submodule update --init --recursive
 
-      - name: Push to your repo
-        run: git push origin main
+      - name: Push to actions branch
+        run: git push origin actions
