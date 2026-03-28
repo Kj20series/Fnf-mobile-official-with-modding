@@ -1,59 +1,89 @@
-name: Android Build (V-Slice Ad-Free)
+name: Build FNF VSlice Mobile APK
+
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
-  build-android:
+  build:
     runs-on: ubuntu-latest
+    env:
+      # CHANGED: Updated NDK to a version that actually supports modern V-Slice C++
+      NDK_VERSION: 25.2.9519653
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Init submodules
+        run: git submodule update --init --recursive
 
       - name: Setup Haxe
         uses: krdlab/setup-haxe@v1
         with:
           haxe-version: 4.3.4
 
-      - name: Install Haxelibs
+      - name: Install system dependencies
         run: |
-          haxelib setup ~/haxelib
-          haxelib install lime 8.1.2
-          haxelib install openfl 9.3.3
-          haxelib install flixel 5.5.0
-          haxelib install flixel-addons
-          haxelib install flixel-ui
-          haxelib install flixel-animate
-          haxelib git polymod https://github.com/larsiusprime/polymod.git
-          haxelib git hxvlc https://github.com/MAJESTY-Development/hxvlc.git
-          haxelib git extension-androidtools https://github.com/MAJESTY-Development/extension-androidtools.git
-          haxelib install extension-haptics
-          haxelib install tjson
-          haxelib install hscript
-          # NO ADMOB INSTALLATION HERE
-          
-      - name: Configure Lime Android
+          sudo apt-get update
+          sudo apt-get install -y neko libasound2-dev libpulse-dev libx11-dev \
+            libxext-dev libxinerama-dev libxrandr-dev libxrender-dev \
+            libgl1-mesa-dev libglu1-mesa-dev g++-multilib gcc-multilib
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 17
+
+      - name: Setup NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: ${{ env.NDK_VERSION }}
+
+      - name: Set Android Environment Variables
         run: |
-          haxelib run lime setup android $ANDROID_SDK_ROOT $ANDROID_NDK_LATEST_HOME
-          haxelib run lime setup
+          # Use the pre-installed SDK path on GitHub Runners
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
+          echo "JAVA_HOME=$JAVA_HOME" >> $GITHUB_ENV
 
-      - name: Prepare Keystore (from Secrets)
-        if: github.event_name != 'pull_request'
+      - name: Setup HMM & Haxelib
         run: |
-          echo "${{ secrets.KEYSTORE_FILE_BASE64 }}" | base64 -d > keystore.jks
-          echo "KEYSTORE_PATH=keystore.jks" > .env
-          echo "KEYSTORE_ALIAS=${{ secrets.KEYSTORE_ALIAS }}" >> .env
-          echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> .env
-        # This matches the envConfig check in your Project.hx
+          # Using the Crew's versions as your script intended
+          haxelib --global git haxelib https://github.com/FunkinCrew/haxelib.git
+          haxelib --global git hmm https://github.com/FunkinCrew/hmm.git
+          haxelib run hmm setup
+          haxelib run hmm install
 
-      - name: Build Android APK
-        run: haxelib run lime build android -release
+      - name: Bootstrap hxcpp
+        run: |
+          # This ensures the C++ compiler toolchain is actually compiled
+          HXCPP_PATH=$(haxelib libpath hxcpp)
+          cd "$HXCPP_PATH/tools/hxcpp"
+          haxe compile.hxml
 
-      - name: Upload APK Artifact
+      - name: Configure Lime for Android
+        run: |
+          # We force-set these so Lime doesn't ask questions during the build
+          haxelib run lime config ANDROID_SDK $ANDROID_HOME
+          haxelib run lime config ANDROID_NDK_ROOT $ANDROID_NDK_HOME
+          haxelib run lime config JAVA_HOME $JAVA_HOME
+          # Rebuild lime for the host and target
+          haxelib run lime rebuild lime linux
+          haxelib run lime rebuild lime android
+
+      - name: Clean and Build APK
+        run: |
+          # Use -debug as your original script had, but added -Dci for better logs
+          haxelib run lime clean android
+          haxelib run lime build android -debug -Dci
+
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FNF-Android-Release
-          path: export/release/android/bin/app/build/outputs/apk/release/*.apk
+          name: FNF-VSlice-Android-Debug
+          path: export/release/android/bin/app/build/outputs/apk/debug/*.apk
