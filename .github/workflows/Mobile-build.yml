@@ -1,12 +1,6 @@
 name: Build FNF VSlice Mobile APK
 
 on:
-  push:
-    branches:
-      - main
-    # Only trigger when this workflow file itself is changed
-    paths:
-      - '.github/workflows/Mobile-build.yml'
   workflow_dispatch:
 
 jobs:
