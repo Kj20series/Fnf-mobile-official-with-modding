@@ -1,0 +1,25 @@
+{
+    "name": "mobile-controls",
+    "description": "a Mobile Control Library, built for simplicity.",
+    "license": "MIT",
+    "releasenote": "First stable release - read changelog",
+    "contributors": [
+        "ArkoseLabs",
+        "KralOyuncu2010x"
+    ],
+    "version": "1.0.1",
+    "url": "https://github.com/ArkoseLabsOfficial/mobile-controls",
+    "classPath": "src",
+    "dependencies": {
+        "flixel": "",
+        "openfl": ""
+    },
+    "tags": [
+        "mobile",
+        "android",
+        "ios",
+        "game",
+        "openfl",
+        "flixel"
+    ]
+}

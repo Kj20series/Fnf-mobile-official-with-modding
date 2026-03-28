@@ -1,0 +1,1 @@
+These things I've heen using on my ports and games, so you can look them and can learn how to use some features.
