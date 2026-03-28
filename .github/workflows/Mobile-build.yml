@@ -27,13 +27,34 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y neko libasound2-dev libpulse-dev libx11-dev \
-            libxext-dev libxinerama-dev libxrandr-dev libxrender-dev \
-            libgl1-mesa-dev libglu1-mesa-dev g++-multilib gcc-multilib \
-            libdbus-1-dev libxcursor-dev libxi-dev libxss-dev \
-            libxinerama-dev libxxf86vm-dev libxrandr-dev libxv-dev \
-            libwayland-dev libwayland-egl-backend-dev libegl-dev \
-            libibus-1.0-dev fcitx-libs-dev
+          sudo apt-get install -y \
+            neko \
+            g++-multilib gcc-multilib \
+            libasound2-dev \
+            libpulse-dev \
+            libdbus-1-dev \
+            libudev-dev \
+            libx11-dev \
+            libxext-dev \
+            libxcursor-dev \
+            libxi-dev \
+            libxinerama-dev \
+            libxrandr-dev \
+            libxrender-dev \
+            libxss-dev \
+            libxv-dev \
+            libxxf86vm-dev \
+            libgl1-mesa-dev \
+            libglu1-mesa-dev \
+            libegl1-mesa-dev \
+            libwayland-dev \
+            libwayland-egl-backend-dev \
+            libibus-1.0-dev \
+            fcitx-libs-dev \
+            libsndio-dev \
+            libdrm-dev \
+            libgbm-dev \
+            libmirclient-dev || true
 
       - name: Setup Java
         uses: actions/setup-java@v4
