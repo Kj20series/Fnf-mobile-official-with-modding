@@ -62,7 +62,13 @@ jobs:
           haxelib --global git haxelib https://github.com/FunkinCrew/haxelib.git
           haxelib --global git hmm https://github.com/FunkinCrew/hmm.git
           haxelib run hmm setup
-          haxelib run hmm install
+
+      # Install hxp directly from git to avoid haxelib server 502 errors
+      - name: Install hxp from git
+        run: haxelib --global git hxp https://github.com/openfl/hxp.git
+
+      - name: Install dependencies
+        run: haxelib run hmm install
 
       - name: Bootstrap hxcpp
         run: |
@@ -78,6 +84,11 @@ jobs:
           haxelib run lime setup android
           haxelib run lime rebuild lime linux
           haxelib run lime rebuild lime android
+
+      - name: Patch project.hxp with mobile source path
+        run: |
+          sed -i 's|this.sources.push(SOURCE_DIR);|this.sources.push(SOURCE_DIR);
+    this.sources.push("source/mobile");|' project.hxp
 
       - name: Clean build
         run: haxelib run lime clean android
