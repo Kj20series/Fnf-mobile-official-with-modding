@@ -32,12 +32,13 @@ jobs:
 
       - name: Force overwrite with upstream files
         run: |
-          # Reset to upstream's main — their files completely replace yours
-          # Your .github/workflows/ folder is preserved below
           git checkout main
           git reset --hard upstream/main
 
-          # Restore YOUR workflow files so they don't get overwritten
+          # Remove upstream's workflow files — we don't want them
+          rm -rf .github/workflows/
+
+          # Restore YOUR workflow files from before the reset
           git checkout HEAD@{1} -- .github/workflows/
 
       - name: Update submodules
