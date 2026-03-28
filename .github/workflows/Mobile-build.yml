@@ -29,7 +29,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y neko libasound2-dev libpulse-dev libx11-dev \
             libxext-dev libxinerama-dev libxrandr-dev libxrender-dev \
-            libgl1-mesa-dev libglu1-mesa-dev g++-multilib gcc-multilib
+            libgl1-mesa-dev libglu1-mesa-dev g++-multilib gcc-multilib \
+            libdbus-1-dev
 
       - name: Setup Java
         uses: actions/setup-java@v4
