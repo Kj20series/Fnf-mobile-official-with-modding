@@ -1,0 +1,48 @@
+name: Import Mobile Controls
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout your repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Clone mobile controls repo
+        run: git clone https://github.com/ArkoseLabsOfficial/mobile-controls-dev.git mobile-controls-tmp
+
+      - name: Copy files into correct locations
+        run: |
+          # Source files → source/mobile (Funkin uses source/ not src/)
+          mkdir -p source/mobile
+          cp -r mobile-controls-tmp/src/mobile/. source/mobile/
+
+          # Assets → assets/mobile
+          mkdir -p assets/mobile
+          cp -r mobile-controls-tmp/assets/mobile/. assets/mobile/
+
+          # Root Haxe config files (needed for the lib to be recognized)
+          cp mobile-controls-tmp/include.xml include.xml
+          cp mobile-controls-tmp/libs.hxml libs.hxml
+
+          # Clean up
+          rm -rf mobile-controls-tmp
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit and push
+        run: |
+          git add .
+          git diff --staged --quiet || git commit -m "Import mobile controls from ArkoseLabsOfficial"
+          git push origin main
