@@ -144,7 +144,7 @@ jobs:
         run: haxelib run lime clean android
 
       - name: Build APK
-        run: haxelib run lime build android -release
+        run: haxelib run lime build android -final -ONLY_ARM64
 
       - name: Find APK
         run: find export -name "*.apk" 2>/dev/null || echo "No APK found"
@@ -153,4 +153,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: FNF-VSlice-AdFree-Debug
-          path: export/android/bin/app/build/outputs/apk/release/*.apk
+          path: export/release/android/bin/app/build/outputs/apk/debug
