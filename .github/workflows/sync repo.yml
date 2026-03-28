@@ -19,43 +19,44 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
+      - name: Clone FNF upstream
+        run: git clone https://github.com/FunkinCrew/Funkin.git upstream-tmp
+
+      - name: Copy upstream files into your repo
+        run: |
+          # Backup your mobile files before copying
+          if [ -d "assets/mobile" ]; then
+            cp -r assets/mobile /tmp/mobile-assets-backup
+          fi
+          if [ -d "source/mobile" ]; then
+            cp -r source/mobile /tmp/mobile-source-backup
+          fi
+
+          # Remove upstream's git history and their workflow files
+          rm -rf upstream-tmp/.git
+          rm -rf upstream-tmp/.github/workflows/
+
+          # Copy everything from upstream into your repo
+          cp -r upstream-tmp/. ./
+          rm -rf upstream-tmp
+
+          # Restore your mobile files
+          if [ -d "/tmp/mobile-assets-backup" ]; then
+            mkdir -p assets/mobile
+            cp -r /tmp/mobile-assets-backup/. assets/mobile/
+          fi
+          if [ -d "/tmp/mobile-source-backup" ]; then
+            mkdir -p source/mobile
+            cp -r /tmp/mobile-source-backup/. source/mobile/
+          fi
+
       - name: Configure git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Add FNF upstream remote
-        run: git remote add upstream https://github.com/FunkinCrew/Funkin.git
-
-      - name: Fetch upstream
-        run: git fetch upstream
-
-      - name: Force overwrite with upstream files
+      - name: Commit and push
         run: |
-          git checkout main
-          git reset --hard upstream/main
-
-          # Remove upstream's workflow files — we don't want them
-          rm -rf .github/workflows/
-
-          # Restore YOUR workflow files from before the reset
-          git checkout HEAD@{1} -- .github/workflows/
-
-      - name: Update submodules
-        run: |
-          # Backup assets/mobile before submodule update wipes it
-          if [ -d "assets/mobile" ]; then
-            cp -r assets/mobile /tmp/mobile-backup
-          fi
-
-          git submodule update --init --recursive
-
-          # Restore assets/mobile after submodule update
-          if [ -d "/tmp/mobile-backup" ]; then
-            mkdir -p assets/mobile
-            cp -r /tmp/mobile-backup/. assets/mobile/
-            rm -rf /tmp/mobile-backup
-          fi
-
-      - name: Push to main
-        run: git push origin main --force
+          git add .
+          git diff --staged --quiet || git commit -m "Sync with FunkinCrew upstream"
+          git push origin main
