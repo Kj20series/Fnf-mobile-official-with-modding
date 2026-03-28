@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+    # Only trigger when this workflow file itself is changed
+    paths:
+      - '.github/workflows/Mobile-build.yml'
   workflow_dispatch:
 
 jobs:
@@ -41,21 +44,17 @@ jobs:
         run: |
           ANDROID_SDK=$ANDROID_SDK_ROOT
           ANDROID_NDK=$ANDROID_SDK/ndk/${{ env.NDK_VERSION }}
-
           echo "ANDROID_HOME=$ANDROID_SDK"       >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK"   >> $GITHUB_ENV
           echo "ANDROID_NDK_HOME=$ANDROID_NDK"   >> $GITHUB_ENV
           echo "ANDROID_NDK_ROOT=$ANDROID_NDK"   >> $GITHUB_ENV
           echo "JAVA_HOME=$JAVA_HOME"             >> $GITHUB_ENV
-
           echo "$ANDROID_SDK/cmdline-tools/latest/bin" >> $GITHUB_PATH
           echo "$ANDROID_SDK/platform-tools"           >> $GITHUB_PATH
 
       - name: Install Android build tools
         run: |
           yes | sdkmanager --licenses
-          # FIX 1: Explicitly install the NDK — it is NOT guaranteed to be
-          # pre-installed at ndk/25.2.9519653 on the runner
           sdkmanager "build-tools;34.0.0" "platforms;android-34" "platform-tools" "ndk;25.2.9519653"
 
       - name: Setup HMM
@@ -90,5 +89,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: FNF-VSlice-AdFree-Debug
-          # FIX 2: -debug builds go to export/debug/, not export/release/
           path: export/release/android/bin/app/build/outputs/apk/release/*.apk
