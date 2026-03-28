@@ -42,7 +42,20 @@ jobs:
           git checkout HEAD@{1} -- .github/workflows/
 
       - name: Update submodules
-        run: git submodule update --init --recursive
+        run: |
+          # Backup assets/mobile before submodule update wipes it
+          if [ -d "assets/mobile" ]; then
+            cp -r assets/mobile /tmp/mobile-backup
+          fi
+
+          git submodule update --init --recursive
+
+          # Restore assets/mobile after submodule update
+          if [ -d "/tmp/mobile-backup" ]; then
+            mkdir -p assets/mobile
+            cp -r /tmp/mobile-backup/. assets/mobile/
+            rm -rf /tmp/mobile-backup
+          fi
 
       - name: Push to main
         run: git push origin main --force
