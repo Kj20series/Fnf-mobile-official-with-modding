@@ -972,7 +972,8 @@ class Strumline extends FlxSpriteGroup
       note.holdNoteSprite.hitNote = true;
       note.holdNoteSprite.missedNote = false;
 
-      note.holdNoteSprite.sustainLength = (note.holdNoteSprite.strumTime + note.holdNoteSprite.fullSustainLength) - conductorInUse.songPosition;
+      note.holdNoteSprite.sustainLength = Math.min(note.holdNoteSprite.fullSustainLength,
+        (note.holdNoteSprite.strumTime + note.holdNoteSprite.fullSustainLength) - conductorInUse.songPosition);
     }
 
     #if FEATURE_GHOST_TAPPING
@@ -1094,6 +1095,8 @@ class Strumline extends FlxSpriteGroup
       splash.y = this.y;
       splash.y -= INITIAL_OFFSET;
       splash.y += noteStyle.getSplashOffsets()[1] * splash.scale.y;
+
+      splash.graphic.destroyOnNoUse = false;
     }
   }
 
@@ -1171,6 +1174,8 @@ class Strumline extends FlxSpriteGroup
       noteSprite.x -= NUDGE;
       noteSprite.y = -9999;
 
+      noteSprite.graphic.destroyOnNoUse = false;
+
       if (noteKind != null) noteSprite.scoreable = noteKind.scoreable;
     }
 
@@ -1211,6 +1216,8 @@ class Strumline extends FlxSpriteGroup
       holdNoteSprite.x += STRUMLINE_SIZE / 2;
       holdNoteSprite.x -= holdNoteSprite.width / 2;
       holdNoteSprite.y = -9999;
+
+      holdNoteSprite.graphic.destroyOnNoUse = false;
 
       if (noteKind != null) holdNoteSprite.scoreable = noteKind.scoreable;
     }
