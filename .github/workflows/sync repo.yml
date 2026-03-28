@@ -31,7 +31,7 @@ jobs:
         run: |
           # Create the actions branch if it doesn't exist yet
           git checkout actions 2>/dev/null || git checkout -b actions
-          git merge upstream/main --no-edit --strategy-option=theirs
+          git merge upstream/main --no-edit --allow-unrelated-histories --strategy-option=theirs
 
       - name: Update submodules
         run: git submodule update --init --recursive
