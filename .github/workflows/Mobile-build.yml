@@ -146,6 +146,9 @@ jobs:
       - name: Build APK
         run: haxelib run lime build android -release
 
+      - name: Find APK
+        run: find export -name "*.apk" 2>/dev/null || echo "No APK found"
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
