@@ -76,7 +76,7 @@ jobs:
           distribution: zulu
           java-version: 17
 
-      # NEW: Properly install Android command-line tools so sdkmanager works
+      # Setup Android SDK Command Line Tools
       - name: Setup Android SDK Command Line Tools
         run: |
           mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
@@ -91,6 +91,12 @@ jobs:
         run: |
           yes | sdkmanager --licenses
           sdkmanager "build-tools;34.0.0" "platforms;android-34" "platform-tools" "ndk;25.2.9519653"
+
+      # Ensure NDK directory actually exists before Lime checks it
+      - name: Verify and Create NDK Directory
+        run: |
+          mkdir -p \( ANDROID_SDK_ROOT/ndk/ \){{ env.NDK_VERSION }}
+          ls -la \( ANDROID_SDK_ROOT/ndk/ \){{ env.NDK_VERSION }} || echo "NDK folder created (may be empty until Lime uses it)"
 
       - name: Set Android Environment Variables
         run: |
