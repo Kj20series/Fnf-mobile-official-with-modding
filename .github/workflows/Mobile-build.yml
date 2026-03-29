@@ -79,7 +79,7 @@ jobs:
       - name: Set Android Environment Variables
         run: |
           ANDROID_SDK=$ANDROID_SDK_ROOT
-          ANDROID_NDK=$ANDROID_SDK/ndk/${{ env.NDK_VERSION }}
+          ANDROID_NDK=\( ANDROID_SDK/ndk/ \){{ env.NDK_VERSION }}
           echo "ANDROID_HOME=$ANDROID_SDK"       >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK"   >> $GITHUB_ENV
           echo "ANDROID_NDK_HOME=$ANDROID_NDK"   >> $GITHUB_ENV
@@ -115,9 +115,9 @@ jobs:
         id: lime-cache
         with:
           path: |
-            ~/.haxelib/lime
-            ~/.haxelib/hxcpp
-          key: lime-rebuild-${{ runner.os }}-${{ hashFiles('hmm.json') }}
+            \~/.haxelib/lime
+            \~/.haxelib/hxcpp
+          key: lime-rebuild-\( {{ runner.os }}- \){{ hashFiles('hmm.json') }}
           restore-keys: |
             lime-rebuild-${{ runner.os }}-
 
@@ -148,7 +148,25 @@ jobs:
         run: haxelib run lime clean android
 
       - name: Build APK
-        run: haxelib run lime build android -final -ONLY_ARM64
+        run: |
+          haxelib run lime build android -final -ONLY_ARM64 \
+            -DNO_FEATURE_TOUCH_CONTROLS \
+            -DNO_FEATURE_HAPTICS \
+            -DNO_FEATURE_MOBILE_ADVERTISEMENTS \
+            -DNO_FEATURE_MOBILE_IAP \
+            -DNO_FEATURE_MOBILE_IAR \
+            -DNO_FEATURE_GHOST_TAPPING \
+            -DNO_FEATURE_COMPRESSED_TEXTURES \
+            -DNO_CENSOR_EXPLETIVES \
+            -DFEATURE_DEBUG_FUNCTIONS \
+            -DFEATURE_DEBUG_MENU \
+            -DFEATURE_ANIMATION_EDITOR \
+            -DFEATURE_CHART_EDITOR \
+            -DFEATURE_STAGE_EDITOR \
+            -DFEATURE_FILE_DROP \
+            -DFEATURE_SCREENSHOTS \
+            -DFEATURE_LOST_FOCUS_VOLUME \
+            -DGITHUB_BUILD
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
