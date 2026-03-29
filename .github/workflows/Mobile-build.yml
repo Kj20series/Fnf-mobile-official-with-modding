@@ -64,12 +64,7 @@ jobs:
             libpng-dev \
             libjpeg-dev \
             libharfbuzz-dev
-          # Optional packages
-          sudo apt-get install -y \
-            libwayland-egl-backend-dev \
-            fcitx-libs-dev \
-            libmirclient-dev || true
-          # Fix DBus arch-deps header path
+          sudo apt-get install -y libwayland-egl-backend-dev fcitx-libs-dev libmirclient-dev || true
           DBUS_ARCH=$(find /usr/lib -name "dbus-arch-deps.h" 2>/dev/null | head -1)
           if [ -n "$DBUS_ARCH" ]; then
             sudo ln -sf "$DBUS_ARCH" /usr/include/dbus-1.0/dbus/dbus-arch-deps.h
@@ -78,20 +73,17 @@ jobs:
       - name: Set Android Environment Variables
         run: |
           ANDROID_SDK="/usr/local/lib/android/sdk"
-          echo "ANDROID_HOME=$ANDROID_SDK"                         >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK"                     >> $GITHUB_ENV
+          echo "ANDROID_HOME=$ANDROID_SDK" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK" >> $GITHUB_ENV
           echo "ANDROID_NDK_HOME=$ANDROID_SDK/ndk/${{ env.NDK_VERSION }}" >> $GITHUB_ENV
           echo "ANDROID_NDK_ROOT=$ANDROID_SDK/ndk/${{ env.NDK_VERSION }}" >> $GITHUB_ENV
-          echo "$ANDROID_SDK/cmdline-tools/latest/bin"             >> $GITHUB_PATH
-          echo "$ANDROID_SDK/platform-tools"                       >> $GITHUB_PATH
+          echo "$ANDROID_SDK/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$ANDROID_SDK/platform-tools" >> $GITHUB_PATH
 
       - name: Install Android packages
         run: |
           yes | sdkmanager --licenses
-          sdkmanager "build-tools;34.0.0" \
-                     "platforms;android-34" \
-                     "platform-tools" \
-                     "ndk;${{ env.NDK_VERSION }}"
+          sdkmanager "build-tools;34.0.0" "platforms;android-34" "platform-tools" "ndk;${{ env.NDK_VERSION }}"
 
       - name: Cache haxelib
         uses: actions/cache@v4
@@ -154,8 +146,6 @@ jobs:
       - name: Rebuild Lime
         if: steps.cache-lime.outputs.cache-hit != 'true'
         run: |
-          # Suppress dangling-reference warnings from harfbuzz — these are
-          # warnings not errors and are safe to ignore in this context
           export CXXFLAGS="-Wno-dangling-reference"
           export CFLAGS="-Wno-dangling-reference"
           haxelib run lime rebuild lime linux
@@ -163,7 +153,11 @@ jobs:
 
       - name: Patch project.hxp with mobile source path
         run: |
-          sed -i 's|this.sources.push(SOURCE_DIR);|this.sources.push(SOURCE_DIR);\n    this.sources.push("source\/mobile");|' project.hxp
+          python3 -c "
+          content = open('project.hxp').read()
+          patched = content.replace('this.sources.push(SOURCE_DIR);', 'this.sources.push(SOURCE_DIR);\n    this.sources.push(\"source/mobile\");')
+          open('project.hxp', 'w').write(patched)
+          "
 
       - name: Clean build
         run: haxelib run lime clean android
