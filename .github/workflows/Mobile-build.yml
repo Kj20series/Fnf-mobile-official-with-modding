@@ -99,6 +99,10 @@ jobs:
           haxelib --global git hmm https://github.com/FunkinCrew/hmm.git
           haxelib run hmm setup
 
+      - name: Install Mobile Controls
+        if: steps.cache-haxelib.outputs.cache-hit != 'true'
+        run: haxelib install mobile-controls 1.0.0
+
       # Install hxp directly from git to avoid haxelib server 502 errors
       - name: Install hxp from git
         run: haxelib --global git hxp https://github.com/openfl/hxp.git
@@ -144,13 +148,10 @@ jobs:
         run: haxelib run lime clean android
 
       - name: Build APK
-        run: haxelib run lime build android -final -ONLY_ARM64
-
-      - name: Find APK
-        run: find export -name "*.apk" 2>/dev/null || echo "No APK found"
+        run: haxelib run lime build android -final -DONLY_ARM64
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: FNF-VSlice-AdFree-Debug
-          path: export/release/android/bin/app/build/outputs/apk/debug
+          path: export/final/android/bin/app/build/outputs/apk/release/*.apk
