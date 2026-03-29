@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      NDK_VERSION: 27.2.12479018
 
     steps:
       - name: Checkout
@@ -27,24 +29,11 @@ jobs:
           distribution: zulu
           java-version: 17
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          cmdline-tools-version: latest
-
-      - name: Install Android packages
-        run: |
-          yes | sdkmanager --licenses
-          sdkmanager "build-tools;34.0.0" \
-                      "platforms;android-34" \
-                      "platform-tools" \
-                      "ndk;27.2.12479018"
-
-      - name: Install Linux system dependencies (comprehensive for Lime rebuild)
+      - name: Install Linux system dependencies
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y \
-            build-essential \
+            build-essential neko \
             g++-multilib gcc-multilib \
             libasound2-dev \
             libpulse-dev \
@@ -70,35 +59,65 @@ jobs:
             libgbm-dev \
             pkg-config \
             libopenal-dev \
-            libpulse0 \
-            libasound2-plugins \
             libfreetype6-dev \
             libfontconfig1-dev \
-            libgtk-3-dev \
-            libssl-dev \
-            libcurl4-openssl-dev \
             libpng-dev \
             libjpeg-dev \
-            libtiff-dev \
-            libavcodec-dev \
-            libavformat-dev \
-            libavutil-dev \
-            libswscale-dev \
-            libvorbis-dev \
-            libogg-dev \
-            libflac-dev \
-            libmp3lame-dev \
-            libharfbuzz-dev \
-            libfreetype-dev
+            libharfbuzz-dev
+          # Optional packages
+          sudo apt-get install -y \
+            libwayland-egl-backend-dev \
+            fcitx-libs-dev \
+            libmirclient-dev || true
+          # Fix DBus arch-deps header path
+          DBUS_ARCH=$(find /usr/lib -name "dbus-arch-deps.h" 2>/dev/null | head -1)
+          if [ -n "$DBUS_ARCH" ]; then
+            sudo ln -sf "$DBUS_ARCH" /usr/include/dbus-1.0/dbus/dbus-arch-deps.h
+          fi
 
       - name: Set Android Environment Variables
         run: |
-          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/27.2.12479018" >> $GITHUB_ENV
-          echo "ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/27.2.12479018" >> $GITHUB_ENV
-          echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          echo "$ANDROID_SDK_ROOT/platform-tools" >> $GITHUB_PATH
+          ANDROID_SDK="/usr/local/lib/android/sdk"
+          echo "ANDROID_HOME=$ANDROID_SDK"                         >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK"                     >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK/ndk/${{ env.NDK_VERSION }}" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=$ANDROID_SDK/ndk/${{ env.NDK_VERSION }}" >> $GITHUB_ENV
+          echo "$ANDROID_SDK/cmdline-tools/latest/bin"             >> $GITHUB_PATH
+          echo "$ANDROID_SDK/platform-tools"                       >> $GITHUB_PATH
+
+      - name: Install Android packages
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager "build-tools;34.0.0" \
+                     "platforms;android-34" \
+                     "platform-tools" \
+                     "ndk;${{ env.NDK_VERSION }}"
+
+      - name: Cache haxelib
+        uses: actions/cache@v4
+        id: cache-haxelib
+        with:
+          path: |
+            ~/.haxelib
+            .haxelib
+          key: haxelib-${{ hashFiles('hmm.json') }}
+          restore-keys: haxelib-
+
+      - name: Cache hxcpp build
+        uses: actions/cache@v4
+        id: cache-hxcpp
+        with:
+          path: /home/runner/.hxcpp
+          key: hxcpp-android-${{ runner.os }}-${{ env.NDK_VERSION }}
+          restore-keys: hxcpp-android-
+
+      - name: Cache Lime rebuild
+        uses: actions/cache@v4
+        id: cache-lime
+        with:
+          path: ~/.lime
+          key: lime-${{ runner.os }}-${{ hashFiles('hmm.json') }}
+          restore-keys: lime-
 
       - name: Setup HMM
         run: |
@@ -107,15 +126,19 @@ jobs:
           haxelib run hmm setup
 
       - name: Install Mobile Controls
+        if: steps.cache-haxelib.outputs.cache-hit != 'true'
         run: haxelib install mobile-controls 1.0.0
 
       - name: Install hxp from git
+        if: steps.cache-haxelib.outputs.cache-hit != 'true'
         run: haxelib --global git hxp https://github.com/openfl/hxp.git
 
       - name: Install dependencies
+        if: steps.cache-haxelib.outputs.cache-hit != 'true'
         run: haxelib run hmm install
 
       - name: Bootstrap hxcpp
+        if: steps.cache-hxcpp.outputs.cache-hit != 'true'
         run: |
           HXCPP_PATH=$(haxelib libpath hxcpp)
           cd "$HXCPP_PATH/tools/hxcpp"
@@ -129,7 +152,12 @@ jobs:
           haxelib run lime setup android
 
       - name: Rebuild Lime
+        if: steps.cache-lime.outputs.cache-hit != 'true'
         run: |
+          # Suppress dangling-reference warnings from harfbuzz — these are
+          # warnings not errors and are safe to ignore in this context
+          export CXXFLAGS="-Wno-dangling-reference"
+          export CFLAGS="-Wno-dangling-reference"
           haxelib run lime rebuild lime linux
           haxelib run lime rebuild lime android
 
@@ -140,9 +168,9 @@ jobs:
       - name: Clean build
         run: haxelib run lime clean android
 
-      - name: Build APK (PC-like version)
+      - name: Build APK
         run: |
-          haxelib run lime build android -final -ONLY_ARM64 \
+          haxelib run lime build android -final -DONLY_ARM64 \
             -DNO_FEATURE_TOUCH_CONTROLS \
             -DNO_FEATURE_HAPTICS \
             -DNO_FEATURE_MOBILE_ADVERTISEMENTS \
@@ -159,10 +187,7 @@ jobs:
             -DFEATURE_FILE_DROP \
             -DFEATURE_SCREENSHOTS \
             -DFEATURE_LOST_FOCUS_VOLUME \
-            -DGITHUB_BUILD \
-            --cpp-flag=-Wno-dangling-reference \
-            --cpp-flag=-Wno-error=dangling-reference \
-            --cpp-flag=-w
+            -DGITHUB_BUILD
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
