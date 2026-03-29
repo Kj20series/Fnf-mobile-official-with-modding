@@ -51,9 +51,6 @@ class Main extends Sprite
     CrashHandler.initialize();
     CrashHandler.queryStatus();
 
-    // Initialize the external .VSliceEngine folder
-    funkin.external.ExternalFolder.init();
-
     Lib.current.addChild(new Main());
   }
 
