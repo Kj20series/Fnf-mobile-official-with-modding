@@ -76,6 +76,17 @@ jobs:
           distribution: zulu
           java-version: 17
 
+      # NEW: Properly install Android command-line tools so sdkmanager works
+      - name: Setup Android SDK Command Line Tools
+        run: |
+          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
+          cd $ANDROID_SDK_ROOT/cmdline-tools
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
+          unzip -q cmdline-tools.zip
+          mv cmdline-tools latest
+          rm cmdline-tools.zip
+          echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
+
       - name: Install Android build tools
         run: |
           yes | sdkmanager --licenses
