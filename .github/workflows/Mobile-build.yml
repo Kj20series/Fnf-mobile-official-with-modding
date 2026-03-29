@@ -158,6 +158,70 @@ jobs:
             -DFEATURE_FILE_DROP \
             -DFEATURE_SCREENSHOTS \
             -DFEATURE_LOST_FOCUS_VOLUME \
+            -DGITHUB_BUILD \
+            --cpp-flag=-Wno-dangling-reference \
+            --cpp-flag=-Wno-error=dangling-reference
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FNF-VSlice-AdFree-Debug
+          path: export/release/android/bin/app/build/outputs/apk/debug          haxelib --global git hmm https://github.com/FunkinCrew/hmm.git
+          haxelib run hmm setup
+
+      - name: Install Mobile Controls
+        run: haxelib install mobile-controls 1.0.0
+
+      - name: Install hxp from git
+        run: haxelib --global git hxp https://github.com/openfl/hxp.git
+
+      - name: Install dependencies
+        run: haxelib run hmm install
+
+      - name: Bootstrap hxcpp
+        run: |
+          HXCPP_PATH=$(haxelib libpath hxcpp)
+          cd "$HXCPP_PATH/tools/hxcpp"
+          haxe compile.hxml
+
+      - name: Setup Lime Config
+        run: |
+          haxelib run lime config ANDROID_SDK $ANDROID_HOME
+          haxelib run lime config ANDROID_NDK_ROOT $ANDROID_NDK_HOME
+          haxelib run lime config JAVA_HOME $JAVA_HOME
+          haxelib run lime setup android
+
+      - name: Rebuild Lime
+        run: |
+          haxelib run lime rebuild lime linux
+          haxelib run lime rebuild lime android
+
+      - name: Patch project.hxp with mobile source path
+        run: |
+          sed -i 's|this.sources.push(SOURCE_DIR);|this.sources.push(SOURCE_DIR);\n    this.sources.push("source\/mobile");|' project.hxp
+
+      - name: Clean build
+        run: haxelib run lime clean android
+
+      - name: Build APK (PC-like version)
+        run: |
+          haxelib run lime build android -final -ONLY_ARM64 \
+            -DNO_FEATURE_TOUCH_CONTROLS \
+            -DNO_FEATURE_HAPTICS \
+            -DNO_FEATURE_MOBILE_ADVERTISEMENTS \
+            -DNO_FEATURE_MOBILE_IAP \
+            -DNO_FEATURE_MOBILE_IAR \
+            -DNO_FEATURE_GHOST_TAPPING \
+            -DNO_FEATURE_COMPRESSED_TEXTURES \
+            -DNO_CENSOR_EXPLETIVES \
+            -DFEATURE_DEBUG_FUNCTIONS \
+            -DFEATURE_DEBUG_MENU \
+            -DFEATURE_ANIMATION_EDITOR \
+            -DFEATURE_CHART_EDITOR \
+            -DFEATURE_STAGE_EDITOR \
+            -DFEATURE_FILE_DROP \
+            -DFEATURE_SCREENSHOTS \
+            -DFEATURE_LOST_FOCUS_VOLUME \
             -DGITHUB_BUILD
 
       - name: Upload APK
