@@ -9,66 +9,17 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      NDK_VERSION: 25.2.9519653
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Init submodules
-        run: git submodule update --init --recursive
+        with:
+          submodules: recursive
 
       - name: Setup Haxe
         uses: krdlab/setup-haxe@v1
         with:
           haxe-version: 4.3.4
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            neko \
-            g++-multilib gcc-multilib \
-            libasound2-dev \
-            libpulse-dev \
-            libdbus-1-dev \
-            libudev-dev \
-            libx11-dev \
-            libxext-dev \
-            libxcursor-dev \
-            libxi-dev \
-            libxinerama-dev \
-            libxrandr-dev \
-            libxrender-dev \
-            libxss-dev \
-            libxv-dev \
-            libxxf86vm-dev \
-            libgl1-mesa-dev \
-            libglu1-mesa-dev \
-            libegl1-mesa-dev \
-            libwayland-dev \
-            libibus-1.0-dev \
-            libsndio-dev \
-            libdrm-dev \
-            libgbm-dev \
-            pkg-config
-          # Optional packages
-          sudo apt-get install -y \
-            libwayland-egl-backend-dev \
-            fcitx-libs-dev \
-            libmirclient-dev || true
-          # Fix DBus arch-deps header path — SDL looks in /usr/include/dbus-1.0/dbus/
-          # but Ubuntu installs it under /usr/lib/.../dbus-1.0/include/dbus/
-          DBUS_ARCH=$(find /usr/lib -name "dbus-arch-deps.h" 2>/dev/null | head -1)
-          if [ -n "$DBUS_ARCH" ]; then
-            sudo ln -sf "$DBUS_ARCH" /usr/include/dbus-1.0/dbus/dbus-arch-deps.h
-          fi
-          # Fix sndio header path if needed
-          SNDIO_H=$(find /usr/include -name "sndio.h" 2>/dev/null | head -1)
-          if [ -z "$SNDIO_H" ]; then
-            sudo find /usr -name "sndio.h" 2>/dev/null -exec ln -sf {} /usr/include/sndio.h \;
-          fi
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -76,37 +27,28 @@ jobs:
           distribution: zulu
           java-version: 17
 
-      # Setup Android SDK Command Line Tools
-      - name: Setup Android SDK Command Line Tools
-        run: |
-          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
-          cd $ANDROID_SDK_ROOT/cmdline-tools
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
-          unzip -q cmdline-tools.zip
-          mv cmdline-tools latest
-          rm cmdline-tools.zip
-          echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
+      # Stable Android SDK + cmdline-tools setup
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: latest
 
-      - name: Install Android build tools
+      - name: Install Android packages (including newer NDK)
         run: |
           yes | sdkmanager --licenses
-          sdkmanager "build-tools;34.0.0" "platforms;android-34" "platform-tools" "ndk;25.2.9519653"
-
-      # Ensure NDK directory actually exists before Lime checks it
-      - name: Verify and Create NDK Directory
-        run: |
-          mkdir -p \( ANDROID_SDK_ROOT/ndk/ \){{ env.NDK_VERSION }}
-          ls -la \( ANDROID_SDK_ROOT/ndk/ \){{ env.NDK_VERSION }} || echo "NDK folder created (may be empty until Lime uses it)"
+          sdkmanager "build-tools;34.0.0" \
+                      "platforms;android-34" \
+                      "platform-tools" \
+                      "ndk;27.2.12479018"
 
       - name: Set Android Environment Variables
         run: |
-          echo "ANDROID_HOME=$ANDROID_SDK_ROOT"       >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"   >> $GITHUB_ENV
-          echo "ANDROID_NDK_HOME=\( ANDROID_SDK_ROOT/ndk/ \){{ env.NDK_VERSION }}"   >> $GITHUB_ENV
-          echo "ANDROID_NDK_ROOT=\( ANDROID_SDK_ROOT/ndk/ \){{ env.NDK_VERSION }}"   >> $GITHUB_ENV
-          echo "JAVA_HOME=$JAVA_HOME"             >> $GITHUB_ENV
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/27.2.12479018" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/27.2.12479018" >> $GITHUB_ENV
           echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          echo "$ANDROID_SDK_ROOT/platform-tools"           >> $GITHUB_PATH
+          echo "$ANDROID_SDK_ROOT/platform-tools" >> $GITHUB_PATH
 
       - name: Setup HMM
         run: |
@@ -115,10 +57,9 @@ jobs:
           haxelib run hmm setup
 
       - name: Install Mobile Controls
-        if: steps.cache-haxelib.outputs.cache-hit != 'true'
         run: haxelib install mobile-controls 1.0.0
 
-      # Install hxp directly from git to avoid haxelib server 502 errors
+      # Install hxp from git
       - name: Install hxp from git
         run: haxelib --global git hxp https://github.com/openfl/hxp.git
 
@@ -150,7 +91,7 @@ jobs:
       - name: Clean build
         run: haxelib run lime clean android
 
-      - name: Build APK
+      - name: Build APK (PC-like version)
         run: |
           haxelib run lime build android -final -ONLY_ARM64 \
             -DNO_FEATURE_TOUCH_CONTROLS \
