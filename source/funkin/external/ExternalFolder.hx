@@ -1,7 +1,6 @@
 package funkin.external;
 
 import sys.FileSystem;
-import sys.io.File;
 import lime.app.Application;
 
 class ExternalFolder
@@ -38,14 +37,8 @@ class ExternalFolder
   {
     var message:String = "Please put the 'assets' and 'mods' folders inside the '.VSliceEngine' folder next to the game executable.";
 
-    #if android
-    // On Android, use a native alert dialog
-    lime.ui.Alert.show(message, "VSlice Engine Setup");
-    #else
-    // On desktop, print to console and show a system dialog
-    Sys.println("[VSliceEngine] " + message);
-    lime.ui.Alert.show(message, "VSlice Engine Setup");
-    #end
+    trace("[VSliceEngine] " + message);
+
+    Application.current.window.alert(message, "VSlice Engine Setup");
   }
 }
-
