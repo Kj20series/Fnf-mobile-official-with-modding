@@ -76,22 +76,21 @@ jobs:
           distribution: zulu
           java-version: 17
 
-      - name: Set Android Environment Variables
-        run: |
-          ANDROID_SDK=$ANDROID_SDK_ROOT
-          ANDROID_NDK=\( ANDROID_SDK/ndk/ \){{ env.NDK_VERSION }}
-          echo "ANDROID_HOME=$ANDROID_SDK"       >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK"   >> $GITHUB_ENV
-          echo "ANDROID_NDK_HOME=$ANDROID_NDK"   >> $GITHUB_ENV
-          echo "ANDROID_NDK_ROOT=$ANDROID_NDK"   >> $GITHUB_ENV
-          echo "JAVA_HOME=$JAVA_HOME"             >> $GITHUB_ENV
-          echo "$ANDROID_SDK/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          echo "$ANDROID_SDK/platform-tools"           >> $GITHUB_PATH
-
       - name: Install Android build tools
         run: |
           yes | sdkmanager --licenses
           sdkmanager "build-tools;34.0.0" "platforms;android-34" "platform-tools" "ndk;25.2.9519653"
+
+      # FIXED: Environment variables now set AFTER NDK is installed
+      - name: Set Android Environment Variables
+        run: |
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT"       >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"   >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=\( ANDROID_SDK_ROOT/ndk/ \){{ env.NDK_VERSION }}"   >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=\( ANDROID_SDK_ROOT/ndk/ \){{ env.NDK_VERSION }}"   >> $GITHUB_ENV
+          echo "JAVA_HOME=$JAVA_HOME"             >> $GITHUB_ENV
+          echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$ANDROID_SDK_ROOT/platform-tools"           >> $GITHUB_PATH
 
       - name: Setup HMM
         run: |
@@ -103,6 +102,76 @@ jobs:
         if: steps.cache-haxelib.outputs.cache-hit != 'true'
         run: haxelib install mobile-controls 1.0.0
 
+      # Install hxp directly from git to avoid haxelib server 502 errors
+      - name: Install hxp from git
+        run: haxelib --global git hxp https://github.com/openfl/hxp.git
+
+      - name: Install dependencies
+        run: haxelib run hmm install
+
+      - name: Cache Lime rebuild
+        uses: actions/cache@v4
+        id: lime-cache
+        with:
+          path: |
+            \~/.haxelib/lime
+            \~/.haxelib/hxcpp
+          key: lime-rebuild-\( {{ runner.os }}- \){{ hashFiles('hmm.json') }}
+          restore-keys: |
+            lime-rebuild-${{ runner.os }}-
+
+      - name: Bootstrap hxcpp
+        run: |
+          HXCPP_PATH=$(haxelib libpath hxcpp)
+          cd "$HXCPP_PATH/tools/hxcpp"
+          haxe compile.hxml
+
+      - name: Setup Lime Config
+        run: |
+          haxelib run lime config ANDROID_SDK $ANDROID_HOME
+          haxelib run lime config ANDROID_NDK_ROOT $ANDROID_NDK_HOME
+          haxelib run lime config JAVA_HOME $JAVA_HOME
+          haxelib run lime setup android
+
+      - name: Rebuild Lime (skipped if cached)
+        if: steps.lime-cache.outputs.cache-hit != 'true'
+        run: |
+          haxelib run lime rebuild lime linux
+          haxelib run lime rebuild lime android
+
+      - name: Patch project.hxp with mobile source path
+        run: |
+          sed -i 's|this.sources.push(SOURCE_DIR);|this.sources.push(SOURCE_DIR);\n    this.sources.push("source\/mobile");|' project.hxp
+
+      - name: Clean build
+        run: haxelib run lime clean android
+
+      - name: Build APK
+        run: |
+          haxelib run lime build android -final -ONLY_ARM64 \
+            -DNO_FEATURE_TOUCH_CONTROLS \
+            -DNO_FEATURE_HAPTICS \
+            -DNO_FEATURE_MOBILE_ADVERTISEMENTS \
+            -DNO_FEATURE_MOBILE_IAP \
+            -DNO_FEATURE_MOBILE_IAR \
+            -DNO_FEATURE_GHOST_TAPPING \
+            -DNO_FEATURE_COMPRESSED_TEXTURES \
+            -DNO_CENSOR_EXPLETIVES \
+            -DFEATURE_DEBUG_FUNCTIONS \
+            -DFEATURE_DEBUG_MENU \
+            -DFEATURE_ANIMATION_EDITOR \
+            -DFEATURE_CHART_EDITOR \
+            -DFEATURE_STAGE_EDITOR \
+            -DFEATURE_FILE_DROP \
+            -DFEATURE_SCREENSHOTS \
+            -DFEATURE_LOST_FOCUS_VOLUME \
+            -DGITHUB_BUILD
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FNF-VSlice-AdFree-Debug
+          path: export/release/android/bin/app/build/outputs/apk/debug
       # Install hxp directly from git to avoid haxelib server 502 errors
       - name: Install hxp from git
         run: haxelib --global git hxp https://github.com/openfl/hxp.git
