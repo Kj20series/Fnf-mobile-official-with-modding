@@ -135,8 +135,25 @@ jobs:
           haxelib run lime config JAVA_HOME $JAVA_HOME
           haxelib run lime setup android
 
-      - name: Install Lime
-        run: haxelib install lime 8.3.1
+      - name: Cache Lime rebuild
+        uses: actions/cache@v4
+        id: cache-lime
+        with:
+          path: ~/.lime
+          key: lime-${{ runner.os }}-${{ hashFiles('hmm.json') }}
+          restore-keys: lime-
+
+      - name: Rebuild Lime
+        if: steps.cache-lime.outputs.cache-hit != 'true'
+        run: |
+          # Patch HarfBuzz to remove the problematic const ref before compiling
+          LIME_PATH=$(haxelib libpath lime)
+          HARFBUZZ_FILE="$LIME_PATH/lib/harfbuzz/src/OT/Layout/GPOS/../../../hb-ot-layout-gsubgpos.hh"
+          if [ -f "$HARFBUZZ_FILE" ]; then
+            sed -i 's/const auto &lookupRecord/auto lookupRecord/g' "$HARFBUZZ_FILE"
+          fi
+          haxelib run lime rebuild lime linux
+          haxelib run lime rebuild lime android
 
       - name: Patch project.hxp with mobile source path
         run: |
