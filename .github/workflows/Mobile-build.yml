@@ -103,14 +103,6 @@ jobs:
           key: hxcpp-android-${{ runner.os }}-${{ env.NDK_VERSION }}
           restore-keys: hxcpp-android-
 
-      - name: Cache Lime rebuild
-        uses: actions/cache@v4
-        id: cache-lime
-        with:
-          path: ~/.lime
-          key: lime-${{ runner.os }}-${{ hashFiles('hmm.json') }}
-          restore-keys: lime-
-
       - name: Setup HMM
         run: |
           haxelib --global git haxelib https://github.com/FunkinCrew/haxelib.git
@@ -143,13 +135,8 @@ jobs:
           haxelib run lime config JAVA_HOME $JAVA_HOME
           haxelib run lime setup android
 
-      - name: Rebuild Lime
-        if: steps.cache-lime.outputs.cache-hit != 'true'
-        run: |
-          export CXXFLAGS="-Wno-dangling-reference"
-          export CFLAGS="-Wno-dangling-reference"
-          haxelib run lime rebuild lime linux
-          haxelib run lime rebuild lime android
+      - name: Install Lime
+        run: haxelib install lime 8.3.1
 
       - name: Patch project.hxp with mobile source path
         run: |
