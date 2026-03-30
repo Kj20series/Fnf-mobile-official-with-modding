@@ -103,14 +103,6 @@ jobs:
           key: hxcpp-android-${{ runner.os }}-${{ env.NDK_VERSION }}
           restore-keys: hxcpp-android-
 
-      - name: Cache Lime rebuild
-        uses: actions/cache@v4
-        id: cache-lime
-        with:
-          path: ~/.lime
-          key: lime-${{ runner.os }}-${{ hashFiles('hmm.json') }}
-          restore-keys: lime-
-
       - name: Setup HMM
         run: |
           for i in 1 2 3; do haxelib --global install hmm && break || sleep 10; done
@@ -144,7 +136,6 @@ jobs:
           haxelib run lime setup android
 
       - name: Rebuild Lime
-        if: steps.cache-lime.outputs.cache-hit != 'true'
         run: |
           LIME_PATH=$(haxelib libpath lime)
           HARFBUZZ_FILE="$LIME_PATH/lib/harfbuzz/src/hb-ot-layout-gsubgpos.hh"
