@@ -119,7 +119,6 @@ jobs:
           haxelib --global git hmm https://github.com/FunkinCrew/hmm.git
 
       - name: Install Mobile Controls
-        if: steps.cache-haxelib.outputs.cache-hit != 'true'
         run: haxelib install mobile-controls
 
       - name: Install hxp from git
