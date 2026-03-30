@@ -105,9 +105,11 @@ jobs:
 
       - name: Setup HMM
         run: |
-          haxelib --global install haxelib 4.2.0
+          haxelib --global install hmm
+          haxelib --global run hmm setup
+          # Use Funkin's patched libraries as fallback for Lime issues
+          haxelib --global git haxelib https://github.com/FunkinCrew/haxelib.git
           haxelib --global git hmm https://github.com/FunkinCrew/hmm.git
-          haxelib run hmm setup
 
       - name: Install Mobile Controls
         if: steps.cache-haxelib.outputs.cache-hit != 'true'
