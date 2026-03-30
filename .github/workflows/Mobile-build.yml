@@ -80,56 +80,116 @@ jobs:
           echo "$ANDROID_SDK/cmdline-tools/latest/bin" >> $GITHUB_PATH
           echo "$ANDROID_SDK/platform-tools" >> $GITHUB_PATH
 
-name: Build FNF VSlice Mobile APK
-
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    env:
-      NDK_VERSION: 27.2.12479018
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Setup Haxe
-        uses: krdlab/setup-haxe@v1
-        with:
-          haxe-version: 4.3.4
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: zulu
-          java-version: 17
-
-      - name: Install Linux system dependencies
+      - name: Install Android packages
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y \
-            build-essential neko \
-            g++-multilib gcc-multilib \
-            libasound2-dev \
-            libpulse-dev \
-            libdbus-1-dev \
-            libudev-dev \
-            libx11-dev \
-            libxext-dev \
-            libxcursor-dev \
-            libxi-dev \
-            libxinerama-dev \
-            libxrandr-dev \
-            libxrender-dev \
-            libxss-dev \
-            libxv-dev \
+          yes | sdkmanager --licenses
+          sdkmanager "build-tools;34.0.0" "platforms;android-34" "platform-tools" "ndk;${{ env.NDK_VERSION }}"
+
+      - name: Cache haxelib
+        uses: actions/cache@v4
+        id: cache-haxelib
+        with:
+          path: |
+            ~/.haxelib
+            .haxelib
+          key: haxelib-${{ hashFiles('hmm.json') }}
+          restore-keys: haxelib-
+
+      - name: Cache hxcpp build
+        uses: actions/cache@v4
+        id: cache-hxcpp
+        with:
+          path: /home/runner/.hxcpp
+          key: hxcpp-android-${{ runner.os }}-${{ env.NDK_VERSION }}
+          restore-keys: hxcpp-android-
+
+      - name: Cache Lime rebuild
+        uses: actions/cache@v4
+        id: cache-lime
+        with:
+          path: ~/.haxelib/lime
+          key: lime-android-${{ runner.os }}-${{ hashFiles('hmm.json') }}
+          restore-keys: lime-android-
+
+      - name: Setup HMM
+        run: |
+          for i in 1 2 3; do haxelib --global install hmm && break || sleep 10; done
+          haxelib --global run hmm setup
+          haxelib --global git haxelib https://github.com/FunkinCrew/haxelib.git
+          haxelib --global git hmm https://github.com/FunkinCrew/hmm.git
+
+      - name: Install Mobile Controls
+        run: haxelib install mobile-controls 1.0.0
+
+      - name: Install hxp from git
+        if: steps.cache-haxelib.outputs.cache-hit != 'true'
+        run: haxelib --global git hxp https://github.com/openfl/hxp.git
+
+      - name: Install dependencies
+        if: steps.cache-haxelib.outputs.cache-hit != 'true'
+        run: haxelib run hmm install
+
+      - name: Bootstrap hxcpp
+        if: steps.cache-hxcpp.outputs.cache-hit != 'true'
+        run: |
+          HXCPP_PATH=$(haxelib libpath hxcpp)
+          cd "$HXCPP_PATH/tools/hxcpp"
+          haxe compile.hxml
+
+      - name: Setup Lime Config
+        run: |
+          haxelib run lime config ANDROID_SDK $ANDROID_HOME
+          haxelib run lime config ANDROID_NDK_ROOT $ANDROID_NDK_HOME
+          haxelib run lime config JAVA_HOME $JAVA_HOME
+          haxelib run lime setup android
+
+      - name: Rebuild Lime
+        if: steps.cache-lime.outputs.cache-hit != 'true'
+        run: |
+          LIME_PATH=$(haxelib libpath lime)
+          HARFBUZZ_FILE="$LIME_PATH/lib/harfbuzz/src/hb-ot-layout-gsubgpos.hh"
+          if [ -f "$HARFBUZZ_FILE" ]; then
+            sed -i 's/const auto &lookupRecord/auto lookupRecord/g' "$HARFBUZZ_FILE"
+          fi
+          haxelib run lime rebuild lime linux
+          haxelib run lime rebuild lime android
+
+      - name: Post Lime Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.haxelib/lime
+          key: lime-android-${{ runner.os }}-${{ hashFiles('hmm.json') }}
+          restore-keys: lime-android-
+
+      - name: Clean build
+        run: haxelib run lime clean android
+
+      - name: Build APK
+        run: |
+          haxelib run lime build android -final -DONLY_ARM64 \
+            -DNO_FEATURE_TOUCH_CONTROLS \
+            -DNO_FEATURE_HAPTICS \
+            -DNO_FEATURE_MOBILE_ADVERTISEMENTS \
+            -DNO_FEATURE_MOBILE_IAP \
+            -DNO_FEATURE_MOBILE_IAR \
+            -DNO_FEATURE_GHOST_TAPPING \
+            -DNO_FEATURE_COMPRESSED_TEXTURES \
+            -DNO_CENSOR_EXPLETIVES \
+            -DFEATURE_DEBUG_FUNCTIONS \
+            -DFEATURE_DEBUG_MENU \
+            -DFEATURE_ANIMATION_EDITOR \
+            -DFEATURE_CHART_EDITOR \
+            -DFEATURE_STAGE_EDITOR \
+            -DFEATURE_FILE_DROP \
+            -DFEATURE_SCREENSHOTS \
+            -DFEATURE_LOST_FOCUS_VOLUME \
+            -DGITHUB_BUILD
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FNF-VSlice-AdFree-Debug
+          path: export/release/android/bin/app/build/outputs/apk/debug
             libxxf86vm-dev \
             libgl1-mesa-dev \
             libglu1-mesa-dev \
