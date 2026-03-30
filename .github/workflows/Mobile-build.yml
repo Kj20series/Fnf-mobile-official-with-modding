@@ -106,7 +106,7 @@ jobs:
       - name: Setup HMM
         run: |
           haxelib --global install haxelib 4.2.0
-          haxelib --global install hmm
+          haxelib --global git hmm https://github.com/FunkinCrew/hmm.git
           haxelib run hmm setup
 
       - name: Install Mobile Controls
