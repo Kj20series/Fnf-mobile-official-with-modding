@@ -103,11 +103,18 @@ jobs:
           key: hxcpp-android-${{ runner.os }}-${{ env.NDK_VERSION }}
           restore-keys: hxcpp-android-
 
+      - name: Cache Lime rebuild
+        uses: actions/cache@v4
+        id: cache-lime
+        with:
+          path: ~/.lime
+          key: lime-${{ runner.os }}-${{ hashFiles('hmm.json') }}
+          restore-keys: lime-
+
       - name: Setup HMM
         run: |
-          haxelib --global install hmm
+          for i in 1 2 3; do haxelib --global install hmm && break || sleep 10; done
           haxelib --global run hmm setup
-          # Use Funkin's patched libraries as fallback for Lime issues
           haxelib --global git haxelib https://github.com/FunkinCrew/haxelib.git
           haxelib --global git hmm https://github.com/FunkinCrew/hmm.git
 
@@ -137,33 +144,16 @@ jobs:
           haxelib run lime config JAVA_HOME $JAVA_HOME
           haxelib run lime setup android
 
-      - name: Cache Lime rebuild
-        uses: actions/cache@v4
-        id: cache-lime
-        with:
-          path: ~/.lime
-          key: lime-${{ runner.os }}-${{ hashFiles('hmm.json') }}
-          restore-keys: lime-
-
       - name: Rebuild Lime
         if: steps.cache-lime.outputs.cache-hit != 'true'
         run: |
-          # Patch HarfBuzz to remove the problematic const ref before compiling
           LIME_PATH=$(haxelib libpath lime)
-          HARFBUZZ_FILE="$LIME_PATH/lib/harfbuzz/src/OT/Layout/GPOS/../../../hb-ot-layout-gsubgpos.hh"
+          HARFBUZZ_FILE="$LIME_PATH/lib/harfbuzz/src/hb-ot-layout-gsubgpos.hh"
           if [ -f "$HARFBUZZ_FILE" ]; then
             sed -i 's/const auto &lookupRecord/auto lookupRecord/g' "$HARFBUZZ_FILE"
           fi
           haxelib run lime rebuild lime linux
           haxelib run lime rebuild lime android
-
-      - name: Patch project.hxp with mobile source path
-        run: |
-          python3 -c "
-          content = open('project.hxp').read()
-          patched = content.replace('this.sources.push(SOURCE_DIR);', 'this.sources.push(SOURCE_DIR);\n    this.sources.push(\"source/mobile\");')
-          open('project.hxp', 'w').write(patched)
-          "
 
       - name: Clean build
         run: haxelib run lime clean android
