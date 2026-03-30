@@ -103,6 +103,14 @@ jobs:
           key: hxcpp-android-${{ runner.os }}-${{ env.NDK_VERSION }}
           restore-keys: hxcpp-android-
 
+      - name: Cache Lime rebuild
+        uses: actions/cache@v4
+        id: cache-lime
+        with:
+          path: ~/.haxelib/lime
+          key: lime-android-${{ runner.os }}-${{ hashFiles('hmm.json') }}
+          restore-keys: lime-android-
+
       - name: Setup HMM
         run: |
           for i in 1 2 3; do haxelib --global install hmm && break || sleep 10; done
@@ -111,7 +119,7 @@ jobs:
           haxelib --global git hmm https://github.com/FunkinCrew/hmm.git
 
       - name: Install Mobile Controls
-        run: haxelib install mobile-controls
+        run: haxelib install mobile-controls 1.0.0
 
       - name: Install hxp from git
         if: steps.cache-haxelib.outputs.cache-hit != 'true'
@@ -136,6 +144,7 @@ jobs:
           haxelib run lime setup android
 
       - name: Rebuild Lime
+        if: steps.cache-lime.outputs.cache-hit != 'true'
         run: |
           LIME_PATH=$(haxelib libpath lime)
           HARFBUZZ_FILE="$LIME_PATH/lib/harfbuzz/src/hb-ot-layout-gsubgpos.hh"
