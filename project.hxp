@@ -619,7 +619,6 @@ class Project extends HXProject
     // Tell Lime where to look for the game's source code.
     // If for some reason we have multiple source directories, we can add more entries here.
     this.sources.push(SOURCE_DIR);
-    this.sources.push("source/mobile");
 
     // Templates stuff
     this.templatePaths.push(TEMPLATES_DIR);
@@ -1083,12 +1082,10 @@ class Project extends HXProject
     // Forcibly include all Funkin' classes in builds.
     // This prevents classes that are unused by the base game from being unavailable to HScript.
     addHaxeMacro("include('funkin', true, ['funkin.mobile.*', 'funkin.ui.debug.anim.*', 'funkin.ui.debug.charting.*', 'funkin.ui.debug.stage.*', 'funkin.ui.debug.stageeditor.*', 'funkin.ui.haxeui.*'])");
-    addHaxeMacro("include('mobile', true, [])");
 
     if (isMobile())
     {
       addHaxeMacro("include('funkin.mobile')");
-      addHaxeMacro("include('mobile')");
     }
 
     if (FEATURE_HAXEUI.isEnabled(this))
