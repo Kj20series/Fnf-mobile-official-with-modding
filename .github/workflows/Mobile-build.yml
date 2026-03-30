@@ -80,6 +80,88 @@ jobs:
           echo "$ANDROID_SDK/cmdline-tools/latest/bin" >> $GITHUB_PATH
           echo "$ANDROID_SDK/platform-tools" >> $GITHUB_PATH
 
+name: Build FNF VSlice Mobile APK
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      NDK_VERSION: 27.2.12479018
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Haxe
+        uses: krdlab/setup-haxe@v1
+        with:
+          haxe-version: 4.3.4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 17
+
+      - name: Install Linux system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            build-essential neko \
+            g++-multilib gcc-multilib \
+            libasound2-dev \
+            libpulse-dev \
+            libdbus-1-dev \
+            libudev-dev \
+            libx11-dev \
+            libxext-dev \
+            libxcursor-dev \
+            libxi-dev \
+            libxinerama-dev \
+            libxrandr-dev \
+            libxrender-dev \
+            libxss-dev \
+            libxv-dev \
+            libxxf86vm-dev \
+            libgl1-mesa-dev \
+            libglu1-mesa-dev \
+            libegl1-mesa-dev \
+            libwayland-dev \
+            libibus-1.0-dev \
+            libsndio-dev \
+            libdrm-dev \
+            libgbm-dev \
+            pkg-config \
+            libopenal-dev \
+            libfreetype6-dev \
+            libfontconfig1-dev \
+            libpng-dev \
+            libjpeg-dev \
+            libharfbuzz-dev
+          sudo apt-get install -y libwayland-egl-backend-dev fcitx-libs-dev libmirclient-dev || true
+          DBUS_ARCH=$(find /usr/lib -name "dbus-arch-deps.h" 2>/dev/null | head -1)
+          if [ -n "$DBUS_ARCH" ]; then
+            sudo ln -sf "$DBUS_ARCH" /usr/include/dbus-1.0/dbus/dbus-arch-deps.h
+          fi
+
+      - name: Set Android Environment Variables
+        run: |
+          ANDROID_SDK="/usr/local/lib/android/sdk"
+          echo "ANDROID_HOME=$ANDROID_SDK" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK/ndk/${{ env.NDK_VERSION }}" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=$ANDROID_SDK/ndk/${{ env.NDK_VERSION }}" >> $GITHUB_ENV
+          echo "$ANDROID_SDK/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$ANDROID_SDK/platform-tools" >> $GITHUB_PATH
+
       - name: Install Android packages
         run: |
           yes | sdkmanager --licenses
@@ -153,6 +235,13 @@ jobs:
           fi
           haxelib run lime rebuild lime linux
           haxelib run lime rebuild lime android
+
+      - name: Post Lime Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.haxelib/lime
+          key: lime-android-${{ runner.os }}-${{ hashFiles('hmm.json') }}
+          restore-keys: lime-android-
 
       - name: Clean build
         run: haxelib run lime clean android
