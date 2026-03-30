@@ -1,3 +1,4 @@
+d/bin/app/build/outputs/apk/debug
 name: Build FNF VSlice Mobile APK
 
 on:
@@ -113,7 +114,7 @@ jobs:
 
       - name: Install Mobile Controls
         if: steps.cache-haxelib.outputs.cache-hit != 'true'
-        run: haxelib install mobile-controls 1.0.0
+        run: haxelib install mobile-controls
 
       - name: Install hxp from git
         if: steps.cache-haxelib.outputs.cache-hit != 'true'
