@@ -105,8 +105,17 @@ jobs:
 
       - name: Setup HMM
         run: |
-          haxelib --global git haxelib https://github.com/FunkinCrew/haxelib.git
-          haxelib --global git hmm https://github.com/FunkinCrew/hmm.git
+          # Retry up to 3 times in case of transient GitHub clone failures
+          for i in 1 2 3; do
+            haxelib --global git haxelib https://github.com/FunkinCrew/haxelib.git && break
+            echo "Attempt $i failed, retrying..."
+            sleep 5
+          done
+          for i in 1 2 3; do
+            haxelib --global git hmm https://github.com/FunkinCrew/hmm.git && break
+            echo "Attempt $i failed, retrying..."
+            sleep 5
+          done
           haxelib run hmm setup
 
       - name: Install Mobile Controls
