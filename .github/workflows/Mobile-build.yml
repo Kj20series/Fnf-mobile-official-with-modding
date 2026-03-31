@@ -110,9 +110,6 @@ jobs:
           haxelib --global git haxelib https://github.com/FunkinCrew/haxelib.git
           haxelib --global git hmm https://github.com/FunkinCrew/hmm.git
 
-      - name: Install Mobile Controls
-        run: haxelib install mobile-controls
-
       - name: Install hxp from git
         if: steps.cache-haxelib.outputs.cache-hit != 'true'
         run: haxelib --global git hxp https://github.com/openfl/hxp.git
@@ -120,6 +117,9 @@ jobs:
       - name: Install dependencies
         if: steps.cache-haxelib.outputs.cache-hit != 'true'
         run: haxelib run hmm install
+
+      - name: Install Mobile Controls
+        run: haxelib install mobile-controls 1.0.0
 
       - name: Bootstrap hxcpp
         if: steps.cache-hxcpp.outputs.cache-hit != 'true'
