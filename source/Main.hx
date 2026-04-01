@@ -20,10 +20,6 @@ import openfl.Lib;
 import openfl.media.Video;
 import openfl.net.NetStream;
 import funkin.util.WindowUtil;
-#if mobile
-import mobile.MobileConfig;
-import mobile.MobileConfig.ButtonModes;
-#end
 
 using funkin.util.AnsiUtil;
 
@@ -54,14 +50,6 @@ class Main extends Sprite
     // We need to make the crash handler LITERALLY FIRST so nothing EVER gets past it.
     CrashHandler.initialize();
     CrashHandler.queryStatus();
-
-    #if mobile
-    // Initialize mobile controls
-    MobileConfig.init('MobileControls', 'FNF-Mobile', 'mobile/',
-      ['MobilePad/DPadModes', 'MobilePad/ActionModes', 'Hitbox/HitboxModes'],
-      [ButtonModes.DPAD, ButtonModes.ACTION, ButtonModes.HITBOX]
-    );
-    #end
 
     Lib.current.addChild(new Main());
   }
