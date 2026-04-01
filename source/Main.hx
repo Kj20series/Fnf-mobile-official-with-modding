@@ -58,11 +58,8 @@ class Main extends Sprite
     #if mobile
     // Initialize mobile controls
     MobileConfig.init('MobileControls', 'FNF-Mobile', 'mobile/',
-      [
-        ['MobilePad/DPadModes', ButtonModes.DPAD],
-        ['MobilePad/ActionModes', ButtonModes.ACTION],
-        ['Hitbox/HitboxModes', ButtonModes.HITBOX]
-      ]
+      ['MobilePad/DPadModes', 'MobilePad/ActionModes', 'Hitbox/HitboxModes'],
+      [ButtonModes.DPAD, ButtonModes.ACTION, ButtonModes.HITBOX]
     );
     #end
 
