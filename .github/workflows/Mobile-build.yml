@@ -103,6 +103,14 @@ jobs:
           key: hxcpp-android-${{ runner.os }}-${{ env.NDK_VERSION }}
           restore-keys: hxcpp-android-
 
+      - name: Cache Lime rebuild
+        uses: actions/cache@v4
+        id: cache-lime
+        with:
+          path: ~/.haxelib/lime
+          key: lime-android-${{ runner.os }}-${{ hashFiles('hmm.json') }}
+          restore-keys: lime-android-
+
       - name: Setup HMM
         run: |
           for i in 1 2 3; do haxelib --global install hmm && break || sleep 10; done
@@ -135,15 +143,41 @@ jobs:
           haxelib run lime config JAVA_HOME $JAVA_HOME
           haxelib run lime setup android
 
-      - name: Rebuild Lime
+      - name: Patch Lime source
+        if: steps.cache-lime.outputs.cache-hit != 'true'
         run: |
           LIME_PATH=$(haxelib libpath lime)
+
+          # Fix HarfBuzz compile error
           HARFBUZZ_FILE="$LIME_PATH/lib/harfbuzz/src/hb-ot-layout-gsubgpos.hh"
           if [ -f "$HARFBUZZ_FILE" ]; then
             sed -i 's/const auto &lookupRecord/auto lookupRecord/g' "$HARFBUZZ_FILE"
           fi
+
+          # Fix gladLoadGLES2 vs gladLoadGL - use correct function per platform
+          OPENGL_FILE="$LIME_PATH/project/src/graphics/opengl/OpenGLBindings.cpp"
+          if [ -f "$OPENGL_FILE" ]; then
+            sed -i '/#ifdef LIME_OPENGL_GLES2/{n;s/gladLoadGL/gladLoadGLES2/}' "$OPENGL_FILE"
+          fi
+
+          # Fix duplicate GLES2 symbols on Linux by removing rpi from gles2.c condition
+          GLAD_FILES="$LIME_PATH/project/lib/glad-files.xml"
+          if [ -f "$GLAD_FILES" ]; then
+            sed -i 's/if="android || rpi || emscripten || tizen"/if="android || emscripten || tizen"/' "$GLAD_FILES"
+          fi
+
+      - name: Rebuild Lime
+        if: steps.cache-lime.outputs.cache-hit != 'true'
+        run: |
           haxelib run lime rebuild lime linux
           haxelib run lime rebuild lime android
+
+      - name: Post Lime Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.haxelib/lime
+          key: lime-android-${{ runner.os }}-${{ hashFiles('hmm.json') }}
+          restore-keys: lime-android-
 
       - name: Clean build
         run: haxelib run lime clean android
@@ -151,26 +185,19 @@ jobs:
       - name: Build APK
         run: |
           haxelib run lime build android -final -DONLY_ARM64 \
-            -DNO_FEATURE_TOUCH_CONTROLS \
-            -DNO_FEATURE_HAPTICS \
+            -DFEATURE_TOUCH_CONTROLS \
+            -DFEATURE_GHOST_TAPPING \
+            -DFEATURE_HAPTICS \
             -DNO_FEATURE_MOBILE_ADVERTISEMENTS \
             -DNO_FEATURE_MOBILE_IAP \
             -DNO_FEATURE_MOBILE_IAR \
-            -DNO_FEATURE_GHOST_TAPPING \
             -DNO_FEATURE_COMPRESSED_TEXTURES \
-            -DNO_CENSOR_EXPLETIVES \
             -DFEATURE_DEBUG_FUNCTIONS \
             -DFEATURE_DEBUG_MENU \
-            -DFEATURE_ANIMATION_EDITOR \
-            -DFEATURE_CHART_EDITOR \
-            -DFEATURE_STAGE_EDITOR \
-            -DFEATURE_FILE_DROP \
-            -DFEATURE_SCREENSHOTS \
-            -DFEATURE_LOST_FOCUS_VOLUME \
             -DGITHUB_BUILD
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FNF-VSlice-AdFree-Debug
+          name: FNF-VSlice-Mobile
           path: export/release/android/bin/app/build/outputs/apk/debug
