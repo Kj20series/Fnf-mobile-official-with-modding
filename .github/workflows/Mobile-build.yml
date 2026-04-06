@@ -108,8 +108,8 @@ jobs:
         id: cache-lime
         with:
           path: ~/.haxelib/lime
-          key: lime-android-${{ runner.os }}-${{ hashFiles('hmm.json') }}
-          restore-keys: lime-android-
+          key: lime-android-v3-${{ runner.os }}-${{ hashFiles('hmm.json') }}
+          restore-keys: lime-android-v3-
 
       - name: Setup HMM
         run: |
@@ -157,7 +157,7 @@ jobs:
           # Fix OpenGLBindings - ensure correct glad function per platform
           OPENGL_FILE="$LIME_PATH/project/src/graphics/opengl/OpenGLBindings.cpp"
           if [ -f "$OPENGL_FILE" ]; then
-            # First fix any previously doubled-up names from bad patches
+            # Fix any previously doubled-up names from bad patches
             sed -i 's/gladLoadGLES2ES2/gladLoadGLES2/g' "$OPENGL_FILE"
             sed -i 's/gladLoadGLES2GLES2/gladLoadGLES2/g' "$OPENGL_FILE"
             # Ensure GLES2 block uses gladLoadGLES2 and GL block uses gladLoadGL
@@ -181,8 +181,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.haxelib/lime
-          key: lime-android-${{ runner.os }}-${{ hashFiles('hmm.json') }}
-          restore-keys: lime-android-
+          key: lime-android-v3-${{ runner.os }}-${{ hashFiles('hmm.json') }}
+          restore-keys: lime-android-v3-
 
       - name: Clean build
         run: haxelib run lime clean android
