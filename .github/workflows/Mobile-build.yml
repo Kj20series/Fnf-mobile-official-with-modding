@@ -108,8 +108,8 @@ jobs:
         id: cache-lime
         with:
           path: ~/.haxelib/lime
-          key: lime-android-v3-${{ runner.os }}-${{ hashFiles('hmm.json') }}
-          restore-keys: lime-android-v3-
+          key: lime-android-v4-${{ runner.os }}-${{ hashFiles('hmm.json') }}
+          restore-keys: lime-android-v4-
 
       - name: Setup HMM
         run: |
@@ -154,15 +154,10 @@ jobs:
             sed -i 's/const auto &lookupRecord/auto lookupRecord/g' "$HARFBUZZ_FILE"
           fi
 
-          # Fix OpenGLBindings - ensure correct glad function per platform
+          # Fix OpenGLBindings - replace gladLoadGL with gladLoadGLES2
           OPENGL_FILE="$LIME_PATH/project/src/graphics/opengl/OpenGLBindings.cpp"
           if [ -f "$OPENGL_FILE" ]; then
-            # Fix any previously doubled-up names from bad patches
-            sed -i 's/gladLoadGLES2ES2/gladLoadGLES2/g' "$OPENGL_FILE"
-            sed -i 's/gladLoadGLES2GLES2/gladLoadGLES2/g' "$OPENGL_FILE"
-            # Ensure GLES2 block uses gladLoadGLES2 and GL block uses gladLoadGL
-            sed -i '/#ifdef LIME_OPENGL_GLES2/{n;s/gladLoadGL\b/gladLoadGLES2/}' "$OPENGL_FILE"
-            sed -i '/#ifdef LIME_OPENGL_GL/{n;s/gladLoadGLES2\b/gladLoadGL/}' "$OPENGL_FILE"
+            sed -i 's/gladLoadGL (/gladLoadGLES2 (/g' "$OPENGL_FILE"
           fi
 
           # Fix duplicate GLES2 symbols on Linux by removing rpi from gles2.c condition
@@ -181,8 +176,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.haxelib/lime
-          key: lime-android-v3-${{ runner.os }}-${{ hashFiles('hmm.json') }}
-          restore-keys: lime-android-v3-
+          key: lime-android-v4-${{ runner.os }}-${{ hashFiles('hmm.json') }}
+          restore-keys: lime-android-v4-
 
       - name: Clean build
         run: haxelib run lime clean android
